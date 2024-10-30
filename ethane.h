@@ -46,8 +46,8 @@
 
 #define __packed        __attribute__((packed))
 
-#define READ_ONCE(x)        (*(volatile typeof(x) *)&(x))
-#define WRITE_ONCE(x, y)    (*(volatile typeof(x) *)&(x) = (y))
+// #define READ_ONCE(x)        (*(volatile typeof(x) *)&(x))
+// #define WRITE_ONCE(x, y)    (*(volatile typeof(x) *)&(x) = (y))
 #define CAS(x, old, new)    __sync_bool_compare_and_swap(&(x), (old), (new))
 #define FAA(x, v)           __sync_fetch_and_add(&(x), (v))
 

@@ -822,7 +822,7 @@ long ethanefs_read(ethanefs_cli_t *cli, ethanefs_open_file_t *file, char *buf, s
 
     /* FIXME: */
     if (size != IO_SIZE || off % IO_SIZE != 0) {
-        pr_err("only support io size %d, and off(=%lu) must be multipler of it!", IO_SIZE, off);
+        pr_err("only support io size %lu, and off(=%lu) must be multipler of it!", IO_SIZE, off);
         abort();
     }
 
@@ -878,7 +878,7 @@ long ethanefs_write(ethanefs_cli_t *cli, ethanefs_open_file_t *file, const char 
 
     /* FIXME: */
     if (size != IO_SIZE || off % IO_SIZE != 0) {
-        pr_err("only support io size %d, and off(=%lu) must be multipler of it!", IO_SIZE, off);
+        pr_err("only support io size %lu, and off(=%lu) must be multipler of it!", IO_SIZE, off);
         abort();
     }
 
@@ -928,7 +928,7 @@ int ethanefs_truncate(ethanefs_cli_t *cli, ethanefs_open_file_t *file, off_t siz
 
     /* FIXME: */
     if (size % IO_SIZE != 0) {
-        pr_err("only support io size %d, and size(=%lu) must be multipler of it!", IO_SIZE, size);
+        pr_err("only support io size %lu, and size(=%lu) must be multipler of it!", IO_SIZE, size);
         abort();
     }
 

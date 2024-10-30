@@ -699,7 +699,7 @@ long logger_get_read_duration(logger_t *logger) {
     return logger->log_read_duration;
 }
 
-static int read_logs(logger_t *logger, struct list_head *local_log_read_tasks,
+static void read_logs(logger_t *logger, struct list_head *local_log_read_tasks,
                             struct log_ptr *go_start, struct log_ptr *go_end,
                             logger_reader_t reader, void *reader_ctx) {
     struct list_head *cli_local_log_read_tasks;

@@ -4,9 +4,14 @@ project(ethane C ASM)
 set(CMAKE_C_STANDARD 99)
 #set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64")
 #set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64 -g -O0")
-set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64 -g -O3")
+set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64 -g -O3 -Wno-unused-variable -Wno-unused-function -Wno-error -Wno-maybe-uninitialized -Wno-array-bounds -Wno-unused-result -Wno-unused-but-set-variable -Wno-incompatible-pointer-types")
+
+add_subdirectory(third_party/prometheus-client-c/prom)
+add_subdirectory(third_party/prometheus-client-c/promhttp)
 
 include_directories(./)
+include_directories(third_party/prometheus-client-c/prom/include)
+include_directories(third_party/prometheus-client-c/promhttp/include)
 
 add_library(ethane SHARED ethanefs.c dmpool_rdma.c dmm.c avl.c kv.c tabhash.c logger.c cachefs.c sharedfs.c oplogger.c dmlocktab.c third_party/libaco/aco.c third_party/libaco/acosw.S coro.c config.c trace.c bench.c rand.c)
 target_link_libraries(ethane ibverbs pthread zookeeper_mt cyaml lttng-ust dl prom promhttp jemalloc backtrace)
