@@ -89,6 +89,7 @@ struct net_context {
 
     struct ibv_port_attr   port_attr;
     struct ibv_device_attr dev_attr;
+    struct ibv_device_attr_ex dev_attr_ex;
 };
 
 /* Compute Node Context */
@@ -280,6 +281,12 @@ static int init_net_context(struct net_context *ctx) {
         goto out;
     }
 
+    if (ibv_query_device_ex(ctx->ibv_ctx, NULL, &ctx->dev_attr_ex)) {
+        pr_err("failed to query IB device ex properties");
+        ret = -EINVAL;
+        goto out;
+    }
+
 out:
     return ret;
 }
@@ -290,6 +297,11 @@ static inline struct ibv_mr *alloc_cmem_mr(struct mn_context *ctx, size_t size) 
     struct ibv_mr *mr;
     struct ibv_dm *dm;
     char *buf;
+
+    if (ctx->net_ctx->dev_attr_ex.max_dm_size < size) {
+        pr_err("on-chip memory size is too small");
+        return ERR_PTR(-EINVAL);
+    }
 
     dm_attr.length = size;
 
