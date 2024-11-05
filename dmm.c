@@ -33,7 +33,7 @@
 #define DMM_BZERO_RPC_ID     3
 #define DMM_BCLEAR_RPC_ID    4
 
-#define DMM_NR_ISOLATE_MNS   1
+#define DMM_NR_ISOLATE_MNS   0
 
 struct dmm_mn {
     void *mem_buf;
@@ -379,11 +379,12 @@ dmptr_t dmm_balloc(dmm_cli_t *dmm, size_t size, size_t align, dmptr_t locality_h
     if (!align) {
         align = BLK_SIZE;
     }
-    if (locality_hint) {
-        list = get_list(dmm, DMPTR_MN_ID(locality_hint));
-    } else {
-        list = auto_choose_list(dmm);
-    }
+    // if (locality_hint) {
+    //     list = get_list(dmm, DMPTR_MN_ID(locality_hint));
+    // } else {
+    //     list = auto_choose_list(dmm);
+    // }
+    list = dmm->free_blk_lists;
     return do_balloc(list, size, align);
 }
 

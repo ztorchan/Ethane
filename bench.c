@@ -28,10 +28,11 @@
 int tsc_khz = 0;
 
 static void get_tsc_khz() {
-    FILE *fp;
-    fp = popen("gdb /dev/null /proc/kcore -ex 'x/uw 0x'$(grep '\\<tsc_khz\\>' /proc/kallsyms | cut -d' ' -f1) -batch 2>/dev/null | tail -n 1 | cut -f2", "r");
-    fscanf(fp, "%d", &tsc_khz);
-    pclose(fp);
+    // FILE *fp;
+    // fp = popen("gdb /dev/null /proc/kcore -ex 'x/uw 0x'$(grep '\\<tsc_khz\\>' /proc/kallsyms | cut -d' ' -f1) -batch 2>/dev/null | tail -n 1 | cut -f2", "r");
+    // fscanf(fp, "%d", &tsc_khz);
+    // pclose(fp);
+    tsc_khz = 2294614;
 }
 
 void bench_timer_init_freq() {
