@@ -31,7 +31,7 @@
 #include "rand.h"
 #include "ethane.h"
 
-#define SHOW_THROUGHPUT_INTERVAL         10
+#define SHOW_THROUGHPUT_INTERVAL         1000
 
 #define DELAY_US   0
 
@@ -51,7 +51,7 @@ static void inject_throttling_delay(long delay_us) {
 }
 
 static void mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose, bool force) {
-    char buf[256];
+    char buf[1024];
     char *p, *q;
     int ret;
 
@@ -112,6 +112,80 @@ static void bench_private(ethanefs_cli_t *cli) {
     printf("%d: done\n", id);
 }
 
+static void bench_path_lookup(ethanefs_cli_t *cli) {
+    struct bench_timer timer;
+    long elapsed_ns = 0;
+    unsigned int seed;
+    char path[1024];
+    char dir_name[64];
+    char file_name[64];
+    int i, ret, id;
+    struct stat buf;
+
+    const int depth = 20;
+    const int total_meta = 252000;
+    const int total_file = total_meta / depth;
+    const int stat_count = 10000000;
+
+    seed = get_rand_seed();
+
+    id = ethanefs_get_cli_id(cli);
+
+    // mkdir and creat
+    for (i = 0; i < total_file; i++) {
+        inject_throttling_delay(DELAY_US);
+
+        strcpy(path, "/");
+        sprintf(file_name, "file%d", i);
+        sprintf(dir_name, "dir%d", i);
+        for (int d = 0; d < depth - 1; d++) {
+          strcat(path, dir_name);
+          strcat(path, "/");
+        }
+        mkdir_recur(cli, path, true, true);
+        strcat(path, file_name);
+        ethanefs_open_file_t *fh = ethanefs_create(cli, path, 0777);
+        if (!fh) {
+            printf("%d: create failed: %d\n", id, ret);
+            exit(1);
+        }
+        ethanefs_close(cli, fh);
+    }
+
+    
+    // stat
+    int err = 0;
+    for (i = 0; i < stat_count; i++) {
+        inject_throttling_delay(DELAY_US);
+
+        int id = i % total_file;
+        strcpy(path, "/");
+        sprintf(file_name, "file%d", id);
+        sprintf(dir_name, "dir%d", id);
+        for (int d = 0; d < depth - 1; d++) {
+          strcat(path, dir_name);
+          strcat(path, "/");
+        }
+        strcat(path, file_name);
+
+        bench_timer_start(&timer);
+        ret = ethanefs_getattr(cli, path, &buf);
+        elapsed_ns += bench_timer_end(&timer);
+        if (ret) {
+            pr_err("%d: stat failed: %d (%s)", ethanefs_get_cli_id(cli), ret, path);
+            err++;
+        }
+        
+        if ((i + 1) % SHOW_THROUGHPUT_INTERVAL == 0) {
+            pr_info("step: %d", i);
+            pr_info("throught: %lu op/s (%d) ", (i + 1) * 1000000000L / elapsed_ns, i + 1);
+            pr_info("latency: %lu ns (%d) ", elapsed_ns / (i + 1), i + 1);
+        }
+    }
+
+    printf("%d: done\n", id);
+}
+
 static void bench_path_walk(ethanefs_cli_t *cli) {
     const char *target = "/linux/tools/testing/selftests/rcutorture/formal/srcu-cbmc/empty_includes/uapi/linux";
     if (!strcmp(ethanefs_get_hostname(), "node140")) {
@@ -146,7 +220,7 @@ static void bench_skewed_path_walk(ethanefs_cli_t *cli) {
         sprintf(path, "/a/f%06ld/a1/a2/a3/a4/a5/a6/a7/a8", id);
         ret = ethanefs_getattr(cli, path, &buf);
         if (ret) {
-            //pr_err("%d: stat failed: %d (%s)", ethanefs_get_cli_id(cli), ret, path);
+            pr_err("%d: stat failed: %d (%s)", ethanefs_get_cli_id(cli), ret, path);
             err++;
         }
 
@@ -255,4 +329,4 @@ static void bench_path_walk_lat(ethanefs_cli_t *cli) {
     }
 }
 
-SET_WORKER_FN(bench_private);
+SET_WORKER_FN(bench_path_lookup);
