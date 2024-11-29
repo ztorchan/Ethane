@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(ethane C ASM)
+project(ethane C CXX ASM)
 
 set(CMAKE_C_STANDARD 99)
 #set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64")
@@ -10,6 +10,7 @@ add_subdirectory(third_party/prometheus-client-c/prom)
 add_subdirectory(third_party/prometheus-client-c/promhttp)
 
 include_directories(./)
+include_directories(mds)
 include_directories(third_party/prometheus-client-c/prom/include)
 include_directories(third_party/prometheus-client-c/promhttp/include)
 
@@ -39,3 +40,6 @@ target_link_libraries(dmperf ethane)
 
 add_executable(ddio ddio.c)
 target_link_libraries(ddio pci ethane)
+
+add_library(hook SHARED hook/hook.c hook/ethane_wrapper.c)
+target_compile_options(hook PUBLIC -fPIC)

@@ -7,6 +7,8 @@ stop_all() {
   kill $launch_id 
 }
 
+trap stop_all EXIT
+
 source $SCRIPT_DIR/common.sh
 
 cluster_clear_ready
@@ -17,3 +19,5 @@ launch_id=$!
 cluster_wait_ready 1
 
 cluster_enable
+
+wait $launch_id

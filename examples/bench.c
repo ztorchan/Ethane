@@ -21,6 +21,7 @@
 #include <dmpool.h>
 #include <syscall.h>
 #include <unistd.h>
+#include <stdatomic.h>
 
 #include "ethanefs.h"
 #include "bench.h"
@@ -39,16 +40,236 @@
 
 #define SET_WORKER_FN(fn)      void worker_fn(ethanefs_cli_t *) __attribute__((alias(#fn)))
 
-static void inject_throttling_delay(long delay_us) {
-    struct bench_timer timer;
-    if (delay_us == 0) {
-        return;
-    }
-    bench_timer_start(&timer);
-    while (bench_timer_end(&timer) < delay_us * 1000) {
-        coro_yield();
+// =========== =========
+
+struct ThreadLocalStatistic {
+  uint64_t thread_id;
+  atomic_uint_fast64_t total_cnt;
+
+  atomic_uint_fast64_t mkdir_cnt;
+  atomic_uint_fast64_t rmdir_cnt;
+  atomic_uint_fast64_t creat_cnt;
+  atomic_uint_fast64_t unlink_cnt;
+  atomic_uint_fast64_t stat_cnt;
+
+  atomic_uint_fast64_t mkdir_time;
+  atomic_uint_fast64_t rmdir_time;
+  atomic_uint_fast64_t creat_time;
+  atomic_uint_fast64_t unlink_time;
+  atomic_uint_fast64_t stat_time;
+};
+
+
+int test_mkdir(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+  struct bench_timer timer;
+  uint64_t elapsed_ns = 0;
+  bench_timer_start(&timer);
+  int ret = ethanefs_mkdir(cli, path, 0777);
+  elapsed_ns += bench_timer_end(&timer);
+  atomic_fetch_add(&statistic->mkdir_time, elapsed_ns);
+  atomic_fetch_add(&statistic->mkdir_cnt, 1);
+  if (ret != 0) {
+    // pr_err("mkdir %s failed: %s", path, strerror(-ret));
+  }
+  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
+    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
+            statistic->thread_id,
+            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
+            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
+            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
+            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
+            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  }
+  return ret;
+}
+
+static void test_mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose, bool force, struct ThreadLocalStatistic* statistic) {
+    char buf[1024];
+    char *p, *q;
+    int ret;
+
+    strcpy(buf, path);
+    p = buf;
+    while ((q = strchr(p + 1, '/')) != NULL) {
+        *q = '\0';
+        ret = test_mkdir(cli, buf, statistic);
+        if (ret && ret != -17 && force) {
+            pr_err("mkdir %s failed: %s", buf, strerror(-ret));
+            exit(1);
+        }
+        if (verbose) {
+            pr_info("mkdir %s done: %s", buf, strerror(-ret));
+        }
+        *q = '/';
+        p = q;
     }
 }
+
+int test_rmdir(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+  struct bench_timer timer;
+  uint64_t elapsed_ns = 0;
+  bench_timer_start(&timer);
+  int ret = ethanefs_rmdir(cli, path);
+  elapsed_ns += bench_timer_end(&timer);
+  atomic_fetch_add(&statistic->rmdir_time, elapsed_ns);
+  atomic_fetch_add(&statistic->rmdir_cnt, 1);
+  if (ret != 0) {
+    // pr_err("rmdir %s failed: %s", path, strerror(-ret));
+  }
+  if ((atomic_fetch_add(&statistic->total_cnt, 1) % 10000) == 0) {
+    // pr_info("%ld", statistic->mkdir_cnt);
+    // pr_info("%ld", statistic->mkdir_time);
+    // pr_info("%ld", statistic->rmdir_cnt);
+    // pr_info("%ld", statistic->rmdir_time);
+    // pr_info("%ld", statistic->creat_cnt);
+    // pr_info("%ld", statistic->creat_time);
+    // pr_info("%ld", statistic->unlink_cnt);
+    // pr_info("%ld", statistic->unlink_time);
+    // pr_info("%ld", statistic->stat_cnt);
+    // pr_info("%ld", statistic->stat_time);
+    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
+            statistic->thread_id,
+            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
+            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
+            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
+            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
+            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  }
+  return ret;
+}
+
+int test_creat(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+  struct bench_timer timer;
+  uint64_t elapsed_ns = 0;
+  bench_timer_start(&timer);
+  ethanefs_open_file_t *fh = ethanefs_create(cli, path, 0777);
+  if (!fh) {
+    // pr_err("mkdir %s failed", path);
+  }
+  ethanefs_close(cli, fh);
+  elapsed_ns += bench_timer_end(&timer);
+  atomic_fetch_add(&statistic->creat_time, elapsed_ns);
+  atomic_fetch_add(&statistic->creat_cnt, 1);
+  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
+    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
+            statistic->thread_id,
+            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
+            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
+            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
+            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
+            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  }
+  return 0;
+}
+
+int test_unlink(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+  struct bench_timer timer;
+  uint64_t elapsed_ns = 0;
+  bench_timer_start(&timer);
+  int ret = ethanefs_unlink(cli, path);
+  elapsed_ns += bench_timer_end(&timer);
+  atomic_fetch_add(&statistic->unlink_time, elapsed_ns);
+  atomic_fetch_add(&statistic->unlink_cnt, 1);
+  if (ret != 0) {
+    // pr_err("unlink %s failed: %s", path, strerror(-ret));
+  }
+  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
+    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
+            statistic->thread_id,
+            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
+            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
+            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
+            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
+            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  }
+  return ret;
+}
+
+int test_stat(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+  struct bench_timer timer;
+  uint64_t elapsed_ns = 0;
+  struct stat st;
+  bench_timer_start(&timer);
+  int ret = ethanefs_getattr(cli, path, &st);
+  elapsed_ns += bench_timer_end(&timer);
+  atomic_fetch_add(&statistic->stat_time, elapsed_ns);
+  atomic_fetch_add(&statistic->stat_cnt, 1);
+  if (ret != 0) {
+    // pr_err("stat %s failed: %s", path, strerror(-ret));
+  }
+  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
+    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
+            statistic->thread_id,
+            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
+            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
+            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
+            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
+            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  }
+  return ret;
+}
+
+
+static void bench_test(ethanefs_cli_t *cli) {
+  static atomic_uint_fast64_t thread_id = 0;
+  struct ThreadLocalStatistic statistic;
+  statistic.thread_id = atomic_fetch_add(&thread_id, 1);
+  statistic.total_cnt = 0;
+  statistic.mkdir_cnt = 1;
+  statistic.rmdir_cnt = 1;
+  statistic.creat_cnt = 1;
+  statistic.unlink_cnt = 1;
+  statistic.stat_cnt = 1;
+  statistic.mkdir_time = 1;
+  statistic.rmdir_time = 1;
+  statistic.creat_time = 1;
+  statistic.unlink_time = 1;
+  statistic.stat_time = 1;
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 4;
+  const int total_meta = 251000;
+  const int total_file = total_meta / depth;
+  const int stat_count = 100000000;
+
+  char basic_path[64];
+  sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%d", i);
+    sprintf(dir_name, "dir%d", i);
+    for (int d = 0; d < depth - 2; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    test_mkdir_recur(cli, path, true, true, &statistic);
+    strcat(path, file_name);
+    test_creat(cli, path, &statistic);
+  }
+
+  int err = 0;
+  for (i = 0; i < stat_count; i++) {
+    int id = i % total_file;
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%d", i);
+    sprintf(dir_name, "dir%d", i);
+    for (int d = 0; d < depth - 2; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    test_stat(cli, path, &statistic);
+  }
+  
+}
+
+
+// =========== =========
 
 static void mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose, bool force) {
     char buf[1024];
@@ -71,6 +292,84 @@ static void mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose, boo
         p = q;
     }
 }
+
+static void inject_throttling_delay(long delay_us) {
+    struct bench_timer timer;
+    if (delay_us == 0) {
+        return;
+    }
+    bench_timer_start(&timer);
+    while (bench_timer_end(&timer) < delay_us * 1000) {
+        coro_yield();
+    }
+}
+
+// static void bench_mds(ethanefs_cli_t *cli) {
+//   mqd_t req_mq;
+//   struct mq_attr req_mq_attr = {
+//     .mq_flags = 0,
+//     .mq_maxmsg = 128,
+//     .mq_msgsize = sizeof(struct MDRequest),
+//     .mq_curmsgs = 0
+//   };
+//   mq_unlink("/test_ethane_req_mq");
+//   req_mq = mq_open("/test_ethane_req_mq", O_CREAT | O_RDWR, 0666, &req_mq_attr);
+//   if (req_mq == -1) {
+//     pr_err("failed to open request mq: %s", strerror(errno));
+//     exit(-1);
+//   }
+
+//   mqd_t resp_mqs[64];
+//   struct mq_attr resp_mq_attr = {
+//     .mq_flags = 0,
+//     .mq_maxmsg = 8,
+//     .mq_msgsize = sizeof(struct MDResponse),
+//     .mq_curmsgs = 0
+//   };
+//   for (int i = 0; i < 64; i++) {
+//     char resp_mq_name[64];
+//     sprintf(resp_mq_name, "%s%d", "/test_ethane_resp_mq_", i);
+//     mq_unlink(resp_mq_name);
+//     resp_mqs[i] = mq_open(resp_mq_name, O_CREAT | O_RDWR, 0666, &resp_mq_attr);
+//     if (resp_mqs[i] == -1) {
+//       pr_err("failed to open response mq: %s", strerror(errno));
+//       exit(-1);
+//     }
+//   }
+
+//   int ret = 0;
+//   while (true) {
+//     struct MDRequest req;
+//     struct MDResponse resp;
+
+//     mq_receive(req_mq, &req, sizeof(struct MDRequest), NULL);
+//     switch (req.op) {
+//       case Mkdir:
+//         ret = ethanefs_mkdir(cli, req.path, req.mode);
+//         break;
+//       case Rmdir:
+//         ret = ethanefs_rmdir(cli, req.path);
+//         break;
+//       case Creat:
+//         ethanefs_open_file_t *fh = ethanefs_create(cli, req.path, req.mode);
+//         if (!fh) {
+//           ret = -1;
+//         }
+//         ethanefs_close(cli, fh);
+//         break;
+//       case Unlink:
+//         ret = ethanefs_unlink(cli, req.path);
+//         break;
+//       case Stat:
+//         ret = ethanefs_getattr(cli, req.path, &resp.st);
+//         break;
+//       default:
+//         break;
+//     }
+//     resp.ret = ret;
+//     mq_send(resp_mqs[req.client_id], &resp, sizeof(struct MDResponse), 0);
+//   }
+// }
 
 static void bench_private(ethanefs_cli_t *cli) {
     struct bench_timer timer;
@@ -122,7 +421,7 @@ static void bench_path_lookup(ethanefs_cli_t *cli) {
     int i, ret, id;
     struct stat buf;
 
-    const int depth = 20;
+    const int depth = 8;
     const int total_meta = 252000;
     const int total_file = total_meta / depth;
     const int stat_count = 10000000;
@@ -329,4 +628,4 @@ static void bench_path_walk_lat(ethanefs_cli_t *cli) {
     }
 }
 
-SET_WORKER_FN(bench_path_lookup);
+SET_WORKER_FN(bench_test);
