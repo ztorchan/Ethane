@@ -59,31 +59,108 @@ struct ThreadLocalStatistic {
   atomic_uint_fast64_t stat_time;
 };
 
+struct GlobalStatistic {
+  atomic_uint_fast64_t total_cnt;
+  atomic_uint_fast64_t thread_num;
+  struct ThreadLocalStatistic thread_statistic[128];
+};
 
-int test_mkdir(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+struct GlobalStatistic global_statistic;
+
+void init_statistic() {
+  atomic_init(&global_statistic.total_cnt, 0);
+  atomic_init(&global_statistic.thread_num, 0);
+  for (int i = 0; i < 128; i++) {
+    global_statistic.thread_statistic[i].thread_id = i;
+    atomic_init(&global_statistic.thread_statistic[i].total_cnt, 0);
+    atomic_init(&global_statistic.thread_statistic[i].mkdir_cnt, 1);
+    atomic_init(&global_statistic.thread_statistic[i].rmdir_cnt, 1);
+    atomic_init(&global_statistic.thread_statistic[i].creat_cnt, 1);
+    atomic_init(&global_statistic.thread_statistic[i].unlink_cnt, 1);
+    atomic_init(&global_statistic.thread_statistic[i].stat_cnt, 1);
+    atomic_init(&global_statistic.thread_statistic[i].mkdir_time, 1);
+    atomic_init(&global_statistic.thread_statistic[i].rmdir_time, 1);
+    atomic_init(&global_statistic.thread_statistic[i].creat_time, 1);
+    atomic_init(&global_statistic.thread_statistic[i].unlink_time, 1);
+    atomic_init(&global_statistic.thread_statistic[i].stat_time, 1);
+  }
+}
+
+void print_statistic() {
+  pr_info("total cnt: %ld", atomic_load(&global_statistic.total_cnt));
+
+  uint64_t total_mkdir_cnt = 0;
+  uint64_t total_mkdir_time = 0;
+  uint64_t total_rmdir_cnt = 0;
+  uint64_t total_rmdir_time = 0;
+  uint64_t total_creat_cnt = 0;
+  uint64_t total_creat_time = 0;
+  uint64_t total_unlink_cnt = 0;
+  uint64_t total_unlink_time = 0;
+  uint64_t total_stat_cnt = 0;
+  uint64_t total_stat_time = 0;
+
+  uint64_t total_mkdir_latency = 0;
+  double total_mkdir_throughput = 0;
+  uint64_t total_rmdir_latency = 0;
+  double total_rmdir_throughput = 0;
+  uint64_t total_creat_latency = 0;
+  double total_creat_throughput = 0;
+  uint64_t total_unlink_latency = 0;
+  double total_unlink_throughput = 0;
+  uint64_t total_stat_latency = 0;
+  double total_stat_throughput = 0;
+
+  for (int i = 0; i < global_statistic.thread_num; i++) {
+    total_mkdir_cnt += atomic_load(&global_statistic.thread_statistic[i].mkdir_cnt);
+    total_mkdir_time += atomic_load(&global_statistic.thread_statistic[i].mkdir_time);
+    total_rmdir_cnt += atomic_load(&global_statistic.thread_statistic[i].rmdir_cnt);
+    total_rmdir_time += atomic_load(&global_statistic.thread_statistic[i].rmdir_time);
+    total_creat_cnt += atomic_load(&global_statistic.thread_statistic[i].creat_cnt);
+    total_creat_time += atomic_load(&global_statistic.thread_statistic[i].creat_time);
+    total_unlink_cnt += atomic_load(&global_statistic.thread_statistic[i].unlink_cnt);
+    total_unlink_time += atomic_load(&global_statistic.thread_statistic[i].unlink_time);
+    total_stat_cnt += atomic_load(&global_statistic.thread_statistic[i].stat_cnt);
+    total_stat_time += atomic_load(&global_statistic.thread_statistic[i].stat_time);
+
+    total_mkdir_throughput += atomic_load(&global_statistic.thread_statistic[i].mkdir_cnt) / (atomic_load(&global_statistic.thread_statistic[i].mkdir_time) / 1000000000.0);
+    total_rmdir_throughput += atomic_load(&global_statistic.thread_statistic[i].rmdir_cnt) / (atomic_load(&global_statistic.thread_statistic[i].rmdir_time) / 1000000000.0);
+    total_creat_throughput += atomic_load(&global_statistic.thread_statistic[i].creat_cnt) / (atomic_load(&global_statistic.thread_statistic[i].creat_time) / 1000000000.0);
+    total_unlink_throughput += atomic_load(&global_statistic.thread_statistic[i].unlink_cnt) / (atomic_load(&global_statistic.thread_statistic[i].unlink_time) / 1000000000.0);
+    total_stat_throughput += atomic_load(&global_statistic.thread_statistic[i].stat_cnt) / (atomic_load(&global_statistic.thread_statistic[i].stat_time) / 1000000000.0);
+  }
+
+  total_mkdir_latency = total_mkdir_time / total_mkdir_cnt;
+  total_rmdir_latency = total_rmdir_time / total_rmdir_cnt;
+  total_creat_latency = total_creat_time / total_creat_cnt;
+  total_unlink_latency = total_unlink_time / total_unlink_cnt;
+  total_stat_latency = total_stat_time / total_stat_cnt;
+
+  pr_info("total mkdir == latency: %ld ns, throughput: %f per sec", total_mkdir_time / total_mkdir_cnt, total_mkdir_throughput);
+  pr_info("total rmdir == latency: %ld ns, throughput: %f per sec", total_rmdir_time / total_rmdir_cnt, total_rmdir_throughput);
+  pr_info("total creat == latency: %ld ns, throughput: %f per sec", total_creat_time / total_creat_cnt, total_creat_throughput);
+  pr_info("total unlink == latency: %ld ns, throughput: %f per sec", total_unlink_time / total_unlink_cnt, total_unlink_throughput);
+  pr_info("total stat == latency: %ld ns, throughput: %f per sec", total_stat_time / total_stat_cnt, total_stat_throughput);
+}
+
+int test_mkdir(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   struct bench_timer timer;
   uint64_t elapsed_ns = 0;
   bench_timer_start(&timer);
   int ret = ethanefs_mkdir(cli, path, 0777);
   elapsed_ns += bench_timer_end(&timer);
-  atomic_fetch_add(&statistic->mkdir_time, elapsed_ns);
-  atomic_fetch_add(&statistic->mkdir_cnt, 1);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].mkdir_time, elapsed_ns);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].mkdir_cnt, 1);
   if (ret != 0) {
     // pr_err("mkdir %s failed: %s", path, strerror(-ret));
   }
-  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
-    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
-            statistic->thread_id,
-            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
-            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
-            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
-            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
-            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+    print_statistic();
   }
   return ret;
 }
 
-static void test_mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose, bool force, struct ThreadLocalStatistic* statistic) {
+static void test_mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose, bool force, uint64_t thread_id) {
     char buf[1024];
     char *p, *q;
     int ret;
@@ -92,7 +169,7 @@ static void test_mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose
     p = buf;
     while ((q = strchr(p + 1, '/')) != NULL) {
         *q = '\0';
-        ret = test_mkdir(cli, buf, statistic);
+        ret = test_mkdir(cli, buf, thread_id);
         if (ret && ret != -17 && force) {
             pr_err("mkdir %s failed: %s", buf, strerror(-ret));
             exit(1);
@@ -105,40 +182,24 @@ static void test_mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose
     }
 }
 
-int test_rmdir(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+int test_rmdir(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   struct bench_timer timer;
   uint64_t elapsed_ns = 0;
   bench_timer_start(&timer);
   int ret = ethanefs_rmdir(cli, path);
   elapsed_ns += bench_timer_end(&timer);
-  atomic_fetch_add(&statistic->rmdir_time, elapsed_ns);
-  atomic_fetch_add(&statistic->rmdir_cnt, 1);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].rmdir_time, elapsed_ns);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].rmdir_cnt, 1);
   if (ret != 0) {
     // pr_err("rmdir %s failed: %s", path, strerror(-ret));
   }
-  if ((atomic_fetch_add(&statistic->total_cnt, 1) % 10000) == 0) {
-    // pr_info("%ld", statistic->mkdir_cnt);
-    // pr_info("%ld", statistic->mkdir_time);
-    // pr_info("%ld", statistic->rmdir_cnt);
-    // pr_info("%ld", statistic->rmdir_time);
-    // pr_info("%ld", statistic->creat_cnt);
-    // pr_info("%ld", statistic->creat_time);
-    // pr_info("%ld", statistic->unlink_cnt);
-    // pr_info("%ld", statistic->unlink_time);
-    // pr_info("%ld", statistic->stat_cnt);
-    // pr_info("%ld", statistic->stat_time);
-    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
-            statistic->thread_id,
-            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
-            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
-            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
-            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
-            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+    print_statistic();
   }
   return ret;
 }
 
-int test_creat(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+int test_creat(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   struct bench_timer timer;
   uint64_t elapsed_ns = 0;
   bench_timer_start(&timer);
@@ -148,83 +209,53 @@ int test_creat(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatisti
   }
   ethanefs_close(cli, fh);
   elapsed_ns += bench_timer_end(&timer);
-  atomic_fetch_add(&statistic->creat_time, elapsed_ns);
-  atomic_fetch_add(&statistic->creat_cnt, 1);
-  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
-    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
-            statistic->thread_id,
-            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
-            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
-            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
-            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
-            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].creat_time, elapsed_ns);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].creat_cnt, 1);
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+    print_statistic();
   }
   return 0;
 }
 
-int test_unlink(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+int test_unlink(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   struct bench_timer timer;
   uint64_t elapsed_ns = 0;
   bench_timer_start(&timer);
   int ret = ethanefs_unlink(cli, path);
   elapsed_ns += bench_timer_end(&timer);
-  atomic_fetch_add(&statistic->unlink_time, elapsed_ns);
-  atomic_fetch_add(&statistic->unlink_cnt, 1);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].unlink_time, elapsed_ns);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].unlink_cnt, 1);
   if (ret != 0) {
     // pr_err("unlink %s failed: %s", path, strerror(-ret));
   }
-  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
-    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
-            statistic->thread_id,
-            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
-            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
-            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
-            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
-            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+    print_statistic();
   }
   return ret;
 }
 
-int test_stat(ethanefs_cli_t *cli, const char* path, struct ThreadLocalStatistic* statistic) {
+int test_stat(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   struct bench_timer timer;
   uint64_t elapsed_ns = 0;
   struct stat st;
   bench_timer_start(&timer);
   int ret = ethanefs_getattr(cli, path, &st);
   elapsed_ns += bench_timer_end(&timer);
-  atomic_fetch_add(&statistic->stat_time, elapsed_ns);
-  atomic_fetch_add(&statistic->stat_cnt, 1);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].stat_time, elapsed_ns);
+  atomic_fetch_add(&global_statistic.thread_statistic[thread_id].stat_cnt, 1);
   if (ret != 0) {
     // pr_err("stat %s failed: %s", path, strerror(-ret));
   }
-  if (atomic_fetch_add(&statistic->total_cnt, 1) % 10000 == 0) {
-    pr_info("thread %ld:\nmkdir == latency: %ld ns, throughput: %f per sec\nrmdir == latency: %ld ns, throughput: %f per sec\ncreat == latency: %ld ns, throughput: %f per sec\nunlink == latency: %ld ns, throughput: %f per sec\nstat == latency: %ld ns, throughput: %f per sec\n",
-            statistic->thread_id,
-            statistic->mkdir_time / statistic->mkdir_cnt, statistic->mkdir_cnt / (statistic->mkdir_time / 1000000000.0),
-            statistic->rmdir_time / statistic->rmdir_cnt, statistic->rmdir_cnt / (statistic->rmdir_time / 1000000000.0),
-            statistic->creat_time / statistic->creat_cnt, statistic->creat_cnt / (statistic->creat_time / 1000000000.0),
-            statistic->unlink_time / statistic->unlink_cnt, statistic->unlink_cnt / (statistic->unlink_time / 1000000000.0),
-            statistic->stat_time / statistic->stat_cnt, statistic->stat_cnt / (statistic->stat_time / 1000000000.0));
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+    print_statistic();
   }
   return ret;
 }
 
 
 static void bench_test(ethanefs_cli_t *cli) {
-  static atomic_uint_fast64_t thread_id = 0;
-  struct ThreadLocalStatistic statistic;
-  statistic.thread_id = atomic_fetch_add(&thread_id, 1);
-  statistic.total_cnt = 0;
-  statistic.mkdir_cnt = 1;
-  statistic.rmdir_cnt = 1;
-  statistic.creat_cnt = 1;
-  statistic.unlink_cnt = 1;
-  statistic.stat_cnt = 1;
-  statistic.mkdir_time = 1;
-  statistic.rmdir_time = 1;
-  statistic.creat_time = 1;
-  statistic.unlink_time = 1;
-  statistic.stat_time = 1;
+  init_statistic();
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
 
   int ret = 0;
   struct stat buf;
@@ -248,9 +279,9 @@ static void bench_test(ethanefs_cli_t *cli) {
       strcat(path, dir_name);
       strcat(path, "/");
     }
-    test_mkdir_recur(cli, path, true, true, &statistic);
+    test_mkdir_recur(cli, path, true, false, thread_id);
     strcat(path, file_name);
-    test_creat(cli, path, &statistic);
+    test_creat(cli, path, thread_id);
   }
 
   int err = 0;
@@ -263,7 +294,7 @@ static void bench_test(ethanefs_cli_t *cli) {
       strcat(path, dir_name);
       strcat(path, "/");
     }
-    test_stat(cli, path, &statistic);
+    test_stat(cli, path, thread_id);
   }
   
 }
