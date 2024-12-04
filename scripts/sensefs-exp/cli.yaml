@@ -5,7 +5,7 @@ dmm:
   pmem_initial_alloc_size_mb: 256
 
 cachefs:
-  namespace_cache_size_max_mb: 16
+  namespace_cache_size_max_mb: 2048
   namespace_cache_size_high_watermark_mb: 8
   block_mapping_cache_size_max_mb: 16
   block_mapping_cache_size_high_watermark_mb: 8

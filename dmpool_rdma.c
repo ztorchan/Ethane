@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <sys/mman.h>
 #include <list.h>
+#include <stdatomic.h>
 
 #include "ethane.h"
 #include "debug.h"
@@ -1122,6 +1123,11 @@ static inline void insert_into_wr_list(dmcontext_t *ctx, int mn_id, struct ibv_s
     wr_list->tail = wr;
 }
 
+atomic_uint_fast64_t dm_access_counter[4][14] = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                                 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                                 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                                 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+
 int dm_copy_from_remote(dmcontext_t *ctx, void *dst, dmptr_t src, size_t size, dmflag_t flag) {
     struct cli_context *cli_ctx = &ctx->cli_ctx;
     struct net_iface *remote_iface;
@@ -1176,6 +1182,36 @@ int dm_copy_from_remote(dmcontext_t *ctx, void *dst, dmptr_t src, size_t size, d
     wr->wr.rdma.rkey = remote_iface->mem_bufs[type].rkey;
 
     insert_into_wr_list(ctx, mn_id, wr);
+
+    if (size <= 8) {
+        atomic_fetch_add(&dm_access_counter[0][0], 1);
+    } else if (size <= 16) {
+        atomic_fetch_add(&dm_access_counter[0][1], 1);
+    } else if (size <= 32) {
+        atomic_fetch_add(&dm_access_counter[0][2], 1);
+    } else if (size <= 64) {
+        atomic_fetch_add(&dm_access_counter[0][3], 1);
+    } else if (size <= 96) {
+        atomic_fetch_add(&dm_access_counter[0][4], 1);
+    } else if (size <= 128) {
+        atomic_fetch_add(&dm_access_counter[0][5], 1);
+    } else if (size <= 192) {
+        atomic_fetch_add(&dm_access_counter[0][6], 1);
+    } else if (size <= 256) {
+        atomic_fetch_add(&dm_access_counter[0][7], 1);
+    } else if (size <= 384) {
+        atomic_fetch_add(&dm_access_counter[0][8], 1);
+    } else if (size <= 512) {
+        atomic_fetch_add(&dm_access_counter[0][9], 1);
+    } else if (size <= 768) {
+        atomic_fetch_add(&dm_access_counter[0][10], 1);
+    } else if (size <= 1024) {
+        atomic_fetch_add(&dm_access_counter[0][11], 1);
+    } else if (size <= 1536) {
+        atomic_fetch_add(&dm_access_counter[0][12], 1);
+    } else {
+        atomic_fetch_add(&dm_access_counter[0][13], 1);
+    }
 
 out:
     return ret;
@@ -1244,6 +1280,35 @@ int dm_copy_to_remote(dmcontext_t *ctx, dmptr_t dst, const void *src, size_t siz
 
     insert_into_wr_list(ctx, mn_id, wr);
 
+    if (size <= 8) {
+        atomic_fetch_add(&dm_access_counter[1][0], 1);
+    } else if (size <= 16) {
+        atomic_fetch_add(&dm_access_counter[1][1], 1);
+    } else if (size <= 32) {
+        atomic_fetch_add(&dm_access_counter[1][2], 1);
+    } else if (size <= 64) {
+        atomic_fetch_add(&dm_access_counter[1][3], 1);
+    } else if (size <= 96) {
+        atomic_fetch_add(&dm_access_counter[1][4], 1);
+    } else if (size <= 128) {
+        atomic_fetch_add(&dm_access_counter[1][5], 1);
+    } else if (size <= 192) {
+        atomic_fetch_add(&dm_access_counter[1][6], 1);
+    } else if (size <= 256) {
+        atomic_fetch_add(&dm_access_counter[1][7], 1);
+    } else if (size <= 384) {
+        atomic_fetch_add(&dm_access_counter[1][8], 1);
+    } else if (size <= 512) {
+        atomic_fetch_add(&dm_access_counter[1][9], 1);
+    } else if (size <= 768) {
+        atomic_fetch_add(&dm_access_counter[1][10], 1);
+    } else if (size <= 1024) {
+        atomic_fetch_add(&dm_access_counter[1][11], 1);
+    } else if (size <= 1536) {
+        atomic_fetch_add(&dm_access_counter[1][12], 1);
+    } else {
+        atomic_fetch_add(&dm_access_counter[1][13], 1);
+    }
 out:
     return ret;
 }
@@ -1387,6 +1452,35 @@ int dm_cas(dmcontext_t *ctx, dmptr_t dst, void *src, void *old, size_t size, dmf
 
     insert_into_wr_list(ctx, mn_id, wr);
 
+    if (size <= 8) {
+        atomic_fetch_add(&dm_access_counter[2][0], 1);
+    } else if (size <= 16) {
+        atomic_fetch_add(&dm_access_counter[2][1], 1);
+    } else if (size <= 32) {
+        atomic_fetch_add(&dm_access_counter[2][2], 1);
+    } else if (size <= 64) {
+        atomic_fetch_add(&dm_access_counter[2][3], 1);
+    } else if (size <= 96) {
+        atomic_fetch_add(&dm_access_counter[2][4], 1);
+    } else if (size <= 128) {
+        atomic_fetch_add(&dm_access_counter[2][5], 1);
+    } else if (size <= 192) {
+        atomic_fetch_add(&dm_access_counter[2][6], 1);
+    } else if (size <= 256) {
+        atomic_fetch_add(&dm_access_counter[2][7], 1);
+    } else if (size <= 384) {
+        atomic_fetch_add(&dm_access_counter[2][8], 1);
+    } else if (size <= 512) {
+        atomic_fetch_add(&dm_access_counter[2][9], 1);
+    } else if (size <= 768) {
+        atomic_fetch_add(&dm_access_counter[2][10], 1);
+    } else if (size <= 1024) {
+        atomic_fetch_add(&dm_access_counter[2][11], 1);
+    } else if (size <= 1536) {
+        atomic_fetch_add(&dm_access_counter[2][12], 1);
+    } else {
+        atomic_fetch_add(&dm_access_counter[2][13], 1);
+    }
 out:
     return ret;
 }
@@ -1442,6 +1536,36 @@ int dm_faa(dmcontext_t *ctx, dmptr_t ptr, void *add_old, size_t size, dmflag_t f
     wr->wr.atomic.compare_add = *(uint64_t *) add_old;
 
     insert_into_wr_list(ctx, mn_id, wr);
+
+    if (size <= 8) {
+        atomic_fetch_add(&dm_access_counter[3][0], 1);
+    } else if (size <= 16) {
+        atomic_fetch_add(&dm_access_counter[3][1], 1);
+    } else if (size <= 32) {
+        atomic_fetch_add(&dm_access_counter[3][2], 1);
+    } else if (size <= 64) {
+        atomic_fetch_add(&dm_access_counter[3][3], 1);
+    } else if (size <= 96) {
+        atomic_fetch_add(&dm_access_counter[3][4], 1);
+    } else if (size <= 128) {
+        atomic_fetch_add(&dm_access_counter[3][5], 1);
+    } else if (size <= 192) {
+        atomic_fetch_add(&dm_access_counter[3][6], 1);
+    } else if (size <= 256) {
+        atomic_fetch_add(&dm_access_counter[3][7], 1);
+    } else if (size <= 384) {
+        atomic_fetch_add(&dm_access_counter[3][8], 1);
+    } else if (size <= 512) {
+        atomic_fetch_add(&dm_access_counter[3][9], 1);
+    } else if (size <= 768) {
+        atomic_fetch_add(&dm_access_counter[3][10], 1);
+    } else if (size <= 1024) {
+        atomic_fetch_add(&dm_access_counter[3][11], 1);
+    } else if (size <= 1536) {
+        atomic_fetch_add(&dm_access_counter[3][12], 1);
+    } else {
+        atomic_fetch_add(&dm_access_counter[3][13], 1);
+    }
 
 out:
     return ret;

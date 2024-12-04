@@ -470,7 +470,7 @@ static void check_cachefs_full(ethanefs_cli_t *cli) {
         return;
     }
 
-    pr_err("cacheFS full (reached max size), force clean...");
+    // pr_err("cacheFS full (reached max size), force clean...");
     ethanefs_clean_cli(cli);
 }
 
@@ -694,6 +694,80 @@ out:
 struct ethanefs_open_file {
     struct ethane_open_file open_file;
 };
+
+// ethanefs_open_file_t *ethanefs_create(ethanefs_cli_t *cli, const char *path, mode_t mode) {
+//     uint64_t result = OP_RESULT_UNDETERMINED;
+//     dmptr_t dentry_remote_addr, log;
+//     struct ethane_open_file *file;
+//     oplogger_ctx_t oplogger_ctx;
+//     cachefs_ctx_t cachefs_ctx;
+//     ethanefs_open_file_t *of;
+//     size_t ver;
+//     int ret;
+//     struct bench_timer timer;
+
+//     bench_timer_start(&timer);
+//     path = get_path(cli, path);
+
+//     check_cachefs_full(cli);
+
+//     dentry_remote_addr = alloc_dentry(cli);
+
+//     get_oplogger_ctx(cli, cli->oplogger, &oplogger_ctx);
+//     get_cachefs_ctx(cli, &cachefs_ctx);
+
+//     pr_info("check_cachefs_full and get ctx: %ld ns", bench_timer_end(&timer));
+
+//     /* append log */
+//     bench_timer_start(&timer);
+//     log = oplogger_create(cli->oplogger, &oplogger_ctx, path, mode, dentry_remote_addr);
+//     if (unlikely(IS_ERR(log))) {
+//         of = ERR_PTR(PTR_ERR(log));
+//         goto out;
+//     }
+//     pr_info("append log: %ld ns", bench_timer_end(&timer));
+
+//     /* get current system version */
+//     bench_timer_start(&timer);
+//     ver = oplogger_get_version(cli->oplogger, &oplogger_ctx);
+//     pr_info("get current system version: %ld ns", bench_timer_end(&timer));
+
+//     /* replay until the newly appended log */
+//     bench_timer_start(&timer);
+//     ret = oplogger_replay_create(cli->oplogger, &oplogger_ctx, path, true, 1);
+//     if (unlikely(ret < 0)) {
+//         of = ERR_PTR(ret);
+//         goto out;
+//     }
+//     pr_info("replay until the newly appended log: %ld ns", bench_timer_end(&timer));  
+
+//     /* create open file */
+//     file = malloc(sizeof(struct ethane_open_file) + strlen(path) + 1);
+
+//     /* perform the actual operation */
+//     bench_timer_start(&timer);
+//     ret = cachefs_create(cli->cfs, &cachefs_ctx, path, &result, mode, dentry_remote_addr, file, ver);
+//     if (unlikely(ret < 0)) {
+//         of = ERR_PTR(ret);
+//         goto out;
+//     }
+//     pr_info("perform the actual operation: %ld ns", bench_timer_end(&timer));
+
+//     if (!ret) {
+//         of = (ethanefs_open_file_t *) file;
+//     } else {
+//         free(file);
+//         of = ERR_PTR(ret);
+//     }
+
+//     /* change result async */
+//     bench_timer_start(&timer);
+//     oplogger_set_result_async(cli->oplogger, log, result);
+//     pr_info("change result async: %ld ns", bench_timer_end(&timer));
+
+// out:
+//     return of;
+// }
 
 ethanefs_open_file_t *ethanefs_create(ethanefs_cli_t *cli, const char *path, mode_t mode) {
     uint64_t result = OP_RESULT_UNDETERMINED;
@@ -1131,7 +1205,7 @@ static void check_gc(oplogger_ctx_t *oplogger_ctx, struct replay_ctx *replay_ctx
     if ((replay && replay_ctx->nr_replayed % CHKPT_GC_INTERVAL == 0) ||
         cachefs_reached_high_watermark(cli->cfs) ||
         replay_ctx->chkpt_ver != replay_ctx->chkpt_ver_remote) {
-        pr_info("run checkpointing...");
+        // pr_info("run checkpointing...");
 
         replay_ctx->chkpt_ver = replay_ctx->chkpt_ver_remote;
 

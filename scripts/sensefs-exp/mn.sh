@@ -25,9 +25,4 @@ sleep 4
 
 $PROJECT_DIR/build/format -z localhost:2181 -t $SCRIPT_DIR/fs.yaml
 
-sleep 4
-
-rm -rf /dev/shm/ethane-log
-trace_prob_ethane_rdma_write=1048576 $PROJECT_DIR/build/logd -z localhost:2181 -c $SCRIPT_DIR/logd.yaml -t $SCRIPT_DIR/logd_cli.yaml -n 0 -g true
-
-sleep 10
+wait $memd_pid

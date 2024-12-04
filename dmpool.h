@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <zookeeper/zookeeper.h>
 
 #define DMPOOL_GLOBAL
@@ -80,6 +81,7 @@ void *dm_reg_local_buf(dmcontext_t *ctx, void *buf, size_t size);
 void dm_local_buf_switch_default(dmcontext_t *ctx);
 void dm_local_buf_switch(dmcontext_t *ctx, void *mr);
 
+extern atomic_uint_fast64_t dm_access_counter[4][14];
 int dm_copy_from_remote(dmcontext_t *ctx, void *dst, dmptr_t src, size_t size, dmflag_t flag);
 int dm_copy_to_remote(dmcontext_t *ctx, dmptr_t dst, const void *src, size_t size, dmflag_t flag);
 int dm_cas(dmcontext_t *ctx, dmptr_t dst, void *src, void *old, size_t size, dmflag_t flag);

@@ -596,6 +596,7 @@ do_replay(oplogger_t *oplogger, oplogger_ctx_t *ctx, const char *path, enum repl
             ret = -ENOMEM;
             goto out;
         }
+        // pr_info("replay %s, nr_deps=%d", path, nr_deps);
 
         ethane_assert(nr_deps > 0);
 

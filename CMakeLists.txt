@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(ethane C CXX ASM)
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 #set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64")
 #set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64 -g -O0")
 set(CMAKE_C_FLAGS "-march=native -D_FILE_OFFSET_BITS=64 -g -O3 -Wno-unused-variable -Wno-unused-function -Wno-error -Wno-maybe-uninitialized -Wno-array-bounds -Wno-unused-result -Wno-unused-but-set-variable -Wno-incompatible-pointer-types")
