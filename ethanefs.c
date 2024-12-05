@@ -243,6 +243,7 @@ ethanefs_cli_t *ethanefs_cli_init(ethanefs_t *fs, struct ethane_cli_config *conf
     cli->logger = logger_init(ctx, dmm_ctx, super->logger_remote_addr, oplogger_filter,
                               config->logger.local_log_region_size_mb * 1024 * 1024,
                               config->logger.log_read_batch_size, config->logger.global_shm_path);
+    pr_info("logger_remote_addr: %lx", super->logger_remote_addr);
     if (unlikely(IS_ERR(cli->logger))) {
         cli = ERR_PTR(PTR_ERR(cli->logger));
         goto out;
@@ -1205,7 +1206,7 @@ static void check_gc(oplogger_ctx_t *oplogger_ctx, struct replay_ctx *replay_ctx
     if ((replay && replay_ctx->nr_replayed % CHKPT_GC_INTERVAL == 0) ||
         cachefs_reached_high_watermark(cli->cfs) ||
         replay_ctx->chkpt_ver != replay_ctx->chkpt_ver_remote) {
-        // pr_info("run checkpointing...");
+        pr_info("run checkpointing...");
 
         replay_ctx->chkpt_ver = replay_ctx->chkpt_ver_remote;
 

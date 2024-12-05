@@ -470,7 +470,7 @@ static int init_cli_context(struct cli_context *ctx, struct cn_context *cn_ctx, 
     ctx->op_buf_size = local_buf_size;
     ctx->op_buf_mr = ibv_reg_mr(ctx->cn_ctx->net_ctx->pd, ctx->op_buf, local_buf_size, IBV_ACCESS_LOCAL_WRITE);
     if (!ctx->op_buf_mr) {
-        pr_err("failed to register operand buffer MR for CLIENT thread");
+        pr_err("failed to register operand buffer %p MR for CLIENT thread: %s", ctx->op_buf, strerror(errno));
         ret = -ENOMEM;
         goto out;
     }

@@ -46,8 +46,8 @@
 
 #define __packed        __attribute__((packed))
 
-// #define READ_ONCE(x)        (*(volatile typeof(x) *)&(x))
-// #define WRITE_ONCE(x, y)    (*(volatile typeof(x) *)&(x) = (y))
+#define READ_ONCE(x)        (*(volatile typeof(x) *)&(x))
+#define WRITE_ONCE(x, y)    (*(volatile typeof(x) *)&(x) = (y))
 #define CAS(x, old, new)    __sync_bool_compare_and_swap(&(x), (old), (new))
 #define FAA(x, v)           __sync_fetch_and_add(&(x), (v))
 
@@ -82,7 +82,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
         barrier();
     }
 }
-
+/*
 #define WRITE_ONCE(x, val) \
 ({							\
 union { typeof(x) __val; char __c[1]; } __u =	\
@@ -97,6 +97,7 @@ union { typeof(x) __val; char __c[1]; } __u;			\
 __read_once_size(&(x), __u.__c, sizeof(x));		\
 __u.__val;							\
 })
+*/
 
 typedef enum {
     ETHANE_DENTRY_FILE,

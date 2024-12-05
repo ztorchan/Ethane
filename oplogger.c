@@ -143,6 +143,7 @@ oplogger_t *oplogger_init(logger_t *logger, dmcontext_t *ctx, struct cachefs *cf
     oplogger->cfs = cfs;
 
     oplogger->head = logger_get_head(logger);
+    pr_info("oplogger head: %lu", oplogger->head);
 
     /* TODO: persistent generator */
     TAB_init_generator(&gen, TAB_DEFAULT_SEED);
@@ -614,6 +615,7 @@ do_replay(oplogger_t *oplogger, oplogger_ctx_t *ctx, const char *path, enum repl
         replay_from = oplogger->skip_table[0];
     }
 
+    // pr_info("oplogger->head=%lu, replay_from=%lu", oplogger->head, replay_from);
     replay_from = max(replay_from, oplogger->head);
 
     if (ctx->target_tail > replay_from) {

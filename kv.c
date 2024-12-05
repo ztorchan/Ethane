@@ -109,7 +109,7 @@ dmptr_t kv_create(dmcontext_t *ctx, dmm_cli_t *dmm, size_t size, size_t val_len,
     slot_len = val_len + sizeof(struct slot_hdr);
     ht_nr_ents = DIV_ROUND_UP(size, slot_len) / 2;
     info->ht_nr_ents = ht_nr_ents;
-
+    pr_info("kv_create: ht_nr_ents=%lu, slot_len=%lu", ht_nr_ents, slot_len);
     ethane_assert(ht_nr_ents % nr_shards == 0);
 
     /* TODO: handle cacheline-unaligned case */
@@ -510,7 +510,7 @@ static int do_kv_get_batch_approx(kv_t *kv, int vec_len, kv_vec_item_t *kv_vec) 
             shard = get_key_shard(kv, item->key, item->key_len);
             addrs[i][j] = loc_by_pos(kv, kv->ht[j], get_pos_by_hash(kv, hash), shard);
 
-            pr_debug("vec[%d]: HT%d: hash=%lu shard=%d hdr_addr=%lx", i, j, hash, shard, addrs[i][j]);
+            // pr_info("vec[%d]: HT%d: key=%s hash=%lu shard=%d hdr_addr=%lx", i, j, item->key, hash, shard, addrs[i][j]);
         }
     }
 
@@ -538,7 +538,7 @@ static int do_kv_get_batch_approx(kv_t *kv, int vec_len, kv_vec_item_t *kv_vec) 
                     goto out;
                 }
 
-                pr_debug("vec[%d] get from HT[%d], hdr_remote_addr=%lx", i, j, addrs[i][j]);
+                // pr_info("vec[%d] get from HT[%d], hdr_remote_addr=%lx", i, j, addrs[i][j]);
             }
         }
 
@@ -594,6 +594,12 @@ static int do_kv_get_batch_approx(kv_t *kv, int vec_len, kv_vec_item_t *kv_vec) 
 
     /* filter out those empty slots */
     for (i = 0; i < vec_len; i++) {
+        // if (!((struct slot_hdr*)((uint64_t)kv_vec[i].possible_vals[1] - sizeof(struct slot_hdr)))->used) {
+        //     kv_vec[i].possible_vals[1] = NULL;
+        // }
+        // if (!((struct slot_hdr*)((uint64_t)kv_vec[i].possible_vals[0] - sizeof(struct slot_hdr)))->used) {
+        //     kv_vec[i].possible_vals[0] = kv_vec[i].possible_vals[1];
+        // }
         if (!(((unsigned long *) kv_vec[i].possible_vals[1])[-1])) {
             kv_vec[i].possible_vals[1] = NULL;
         }

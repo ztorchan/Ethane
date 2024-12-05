@@ -2,7 +2,7 @@ dmm:
   pmem_initial_alloc_size_mb: 8192
 
 sharedfs:
-  namespace_kv_size_mb: 2048
+  namespace_kv_size_mb: 32768
   block_mapping_kv_size_mb: 2048
   interval_node_nr_blks: [64, 512, 262144]
   kv_nr_shards: 256

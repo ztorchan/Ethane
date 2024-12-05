@@ -50,6 +50,12 @@ struct ThreadLocalStatistic {
   atomic_uint_fast64_t unlink_cnt;
   atomic_uint_fast64_t stat_cnt;
 
+  atomic_uint_fast64_t mkdir_fail_cnt;
+  atomic_uint_fast64_t rmdir_fail_cnt;
+  atomic_uint_fast64_t creat_fail_cnt;
+  atomic_uint_fast64_t unlink_fail_cnt;
+  atomic_uint_fast64_t stat_fail_cnt;
+
   atomic_uint_fast64_t mkdir_time;
   atomic_uint_fast64_t rmdir_time;
   atomic_uint_fast64_t creat_time;
@@ -127,6 +133,11 @@ void init_statistic(uint64_t thread_id) {
   atomic_init(&global_statistic.thread_statistic[thread_id].creat_cnt, 1);
   atomic_init(&global_statistic.thread_statistic[thread_id].unlink_cnt, 1);
   atomic_init(&global_statistic.thread_statistic[thread_id].stat_cnt, 1);
+  atomic_init(&global_statistic.thread_statistic[thread_id].mkdir_fail_cnt, 0);
+  atomic_init(&global_statistic.thread_statistic[thread_id].rmdir_fail_cnt, 0);
+  atomic_init(&global_statistic.thread_statistic[thread_id].creat_fail_cnt, 0);
+  atomic_init(&global_statistic.thread_statistic[thread_id].unlink_fail_cnt, 0);
+  atomic_init(&global_statistic.thread_statistic[thread_id].stat_fail_cnt, 0);
   atomic_init(&global_statistic.thread_statistic[thread_id].mkdir_time, 1);
   atomic_init(&global_statistic.thread_statistic[thread_id].rmdir_time, 1);
   atomic_init(&global_statistic.thread_statistic[thread_id].creat_time, 1);
@@ -138,14 +149,19 @@ void print_statistic() {
   pr_info("total cnt: %ld", atomic_load(&global_statistic.total_cnt));
 
   uint64_t total_mkdir_cnt = 0;
+  uint64_t total_mkdir_fail_cnt = 0;
   uint64_t total_mkdir_time = 0;
   uint64_t total_rmdir_cnt = 0;
+  uint64_t total_rmdir_fail_cnt = 0;
   uint64_t total_rmdir_time = 0;
   uint64_t total_creat_cnt = 0;
+  uint64_t total_creat_fail_cnt = 0;
   uint64_t total_creat_time = 0;
   uint64_t total_unlink_cnt = 0;
+  uint64_t total_unlink_fail_cnt = 0;
   uint64_t total_unlink_time = 0;
   uint64_t total_stat_cnt = 0;
+  uint64_t total_stat_fail_cnt = 0;
   uint64_t total_stat_time = 0;
 
   uint64_t total_mkdir_latency = 0;
@@ -161,14 +177,19 @@ void print_statistic() {
 
   for (int i = 0; i < global_statistic.thread_num; i++) {
     total_mkdir_cnt += atomic_load(&global_statistic.thread_statistic[i].mkdir_cnt);
+    total_mkdir_fail_cnt += atomic_load(&global_statistic.thread_statistic[i].mkdir_fail_cnt);
     total_mkdir_time += atomic_load(&global_statistic.thread_statistic[i].mkdir_time);
     total_rmdir_cnt += atomic_load(&global_statistic.thread_statistic[i].rmdir_cnt);
+    total_rmdir_fail_cnt += atomic_load(&global_statistic.thread_statistic[i].rmdir_fail_cnt);
     total_rmdir_time += atomic_load(&global_statistic.thread_statistic[i].rmdir_time);
     total_creat_cnt += atomic_load(&global_statistic.thread_statistic[i].creat_cnt);
+    total_creat_fail_cnt += atomic_load(&global_statistic.thread_statistic[i].creat_fail_cnt);
     total_creat_time += atomic_load(&global_statistic.thread_statistic[i].creat_time);
     total_unlink_cnt += atomic_load(&global_statistic.thread_statistic[i].unlink_cnt);
+    total_unlink_fail_cnt += atomic_load(&global_statistic.thread_statistic[i].unlink_fail_cnt);
     total_unlink_time += atomic_load(&global_statistic.thread_statistic[i].unlink_time);
     total_stat_cnt += atomic_load(&global_statistic.thread_statistic[i].stat_cnt);
+    total_stat_fail_cnt += atomic_load(&global_statistic.thread_statistic[i].stat_fail_cnt);
     total_stat_time += atomic_load(&global_statistic.thread_statistic[i].stat_time);
 
     total_mkdir_throughput += atomic_load(&global_statistic.thread_statistic[i].mkdir_cnt) / (atomic_load(&global_statistic.thread_statistic[i].mkdir_time) / 1000000000.0);
@@ -184,11 +205,11 @@ void print_statistic() {
   total_unlink_latency = total_unlink_time / total_unlink_cnt;
   total_stat_latency = total_stat_time / total_stat_cnt;
 
-  pr_info("total mkdir == latency: %ld ns, throughput: %f per sec", total_mkdir_time / total_mkdir_cnt, total_mkdir_throughput);
-  pr_info("total rmdir == latency: %ld ns, throughput: %f per sec", total_rmdir_time / total_rmdir_cnt, total_rmdir_throughput);
-  pr_info("total creat == latency: %ld ns, throughput: %f per sec", total_creat_time / total_creat_cnt, total_creat_throughput);
-  pr_info("total unlink == latency: %ld ns, throughput: %f per sec", total_unlink_time / total_unlink_cnt, total_unlink_throughput);
-  pr_info("total stat == latency: %ld ns, throughput: %f per sec", total_stat_time / total_stat_cnt, total_stat_throughput);
+  pr_info("total mkdir (%ld/%ld) == latency: %ld ns, throughput: %f per sec", total_mkdir_cnt - total_mkdir_fail_cnt, total_mkdir_cnt, total_mkdir_time / total_mkdir_cnt, total_mkdir_throughput);
+  pr_info("total rmdir (%ld/%ld) == latency: %ld ns, throughput: %f per sec", total_rmdir_cnt - total_rmdir_fail_cnt, total_rmdir_cnt, total_rmdir_time / total_rmdir_cnt, total_rmdir_throughput);
+  pr_info("total creat (%ld/%ld) == latency: %ld ns, throughput: %f per sec", total_creat_cnt - total_creat_fail_cnt, total_creat_cnt, total_creat_time / total_creat_cnt, total_creat_throughput);
+  pr_info("total unlink (%ld/%ld) == latency: %ld ns, throughput: %f per sec", total_unlink_cnt - total_unlink_fail_cnt, total_unlink_cnt, total_unlink_time / total_unlink_cnt, total_unlink_throughput);
+  pr_info("total stat (%ld/%ld) == latency: %ld ns, throughput: %f per sec", total_stat_cnt - total_stat_fail_cnt, total_stat_cnt, total_stat_time / total_stat_cnt, total_stat_throughput);
 }
 
 int test_mkdir(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
@@ -201,7 +222,8 @@ int test_mkdir(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].mkdir_time, elapsed_ns);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].mkdir_cnt, 1);
   if (ret != 0) {
-    pr_err("mkdir %s failed: %s", path, strerror(-ret));
+    // pr_err("mkdir %s failed: %s", path, strerror(-ret));
+    atomic_fetch_add(&global_statistic.thread_statistic[thread_id].mkdir_fail_cnt, 1);
   }
   if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
     print_statistic();
@@ -221,7 +243,6 @@ static void test_mkdir_recur(ethanefs_cli_t *cli, const char *path, bool verbose
         ret = test_mkdir(cli, buf, thread_id);
         if (ret && ret != -17 && force) {
             pr_err("mkdir %s failed: %s", buf, strerror(-ret));
-            exit(1);
         }
         if (verbose) {
             pr_info("mkdir %s done: %s", buf, strerror(-ret));
@@ -241,8 +262,8 @@ int test_rmdir(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].rmdir_time, elapsed_ns);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].rmdir_cnt, 1);
   if (ret != 0) {
-    pr_err("rmdir %s failed: %s", path, strerror(-ret));
-    exit(1);
+    // pr_err("rmdir %s failed: %s", path, strerror(-ret));
+    atomic_fetch_add(&global_statistic.thread_statistic[thread_id].rmdir_fail_cnt, 1);
   }
   if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
     print_statistic();
@@ -257,17 +278,17 @@ int test_creat(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   bench_timer_start(&timer);
   ethanefs_open_file_t *fh = ethanefs_create(cli, path, 0777);
   elapsed_ns += bench_timer_end(&timer);
-  if (IS_ERR(fh)) {
-    pr_err("thread %ld creat %s failed: %s", thread_id, path, strerror(-PTR_ERR(fh)));
-    // exit(1);
-    return PTR_ERR(fh);
-  } 
-  ethanefs_close(cli, fh);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].creat_time, elapsed_ns);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].creat_cnt, 1);
   if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
     print_statistic();
   }
+  if (IS_ERR(fh)) {
+    // pr_err("thread %ld creat %s failed: %s", thread_id, path, strerror(-PTR_ERR(fh)));
+    atomic_fetch_add(&global_statistic.thread_statistic[thread_id].creat_fail_cnt, 1);
+    return PTR_ERR(fh);
+  } 
+  ethanefs_close(cli, fh);
   return 0;
 }
 
@@ -281,9 +302,8 @@ int test_unlink(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].unlink_time, elapsed_ns);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].unlink_cnt, 1);
   if (ret != 0) {
-    pr_err("unlink %s failed: %s", path, strerror(-ret));
-    // exit(1);
-    return ret;
+    // pr_err("unlink %s failed: %s", path, strerror(-ret));
+    atomic_fetch_add(&global_statistic.thread_statistic[thread_id].unlink_fail_cnt, 1);
   }
   if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
     print_statistic();
@@ -292,7 +312,7 @@ int test_unlink(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
 }
 
 int test_stat(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
-  usleep(10);
+  // usleep(10);
   struct bench_timer timer;
   uint64_t elapsed_ns = 0;
   struct stat st;
@@ -302,10 +322,10 @@ int test_stat(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].stat_time, elapsed_ns);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].stat_cnt, 1);
   if (ret != 0) {
-    pr_err("stat %s failed: %s", path, strerror(-ret));
-    exit(1);
+    // pr_err("stat %s failed: %s", path, strerror(-ret));
+    atomic_fetch_add(&global_statistic.thread_statistic[thread_id].stat_fail_cnt, 1);
   }
-  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 100000 == 0) {
     print_statistic();
   }
   return ret;
@@ -344,18 +364,19 @@ static void bench_test(ethanefs_cli_t *cli) {
     test_creat(cli, path, thread_id);
   }
 
-  int err = 0;
-  for (i = 0; i < stat_count; i++) {
-    int id = i % total_file;
-    strcpy(path, basic_path);
-    sprintf(file_name, "file%ld", thread_id * total_file + i);
-    sprintf(dir_name, "dir%ld", thread_id * total_file + i);
-    for (int d = 0; d < depth - 2; d++) {
-      strcat(path, dir_name);
-      strcat(path, "/");
-    }
-    test_stat(cli, path, thread_id);
-  }
+  // int err = 0;
+  // for (i = 0; i < stat_count; i++) {
+  //   int id = i % total_file;
+  //   strcpy(path, basic_path);
+  //   sprintf(file_name, "file%ld", thread_id * total_file + id);
+  //   sprintf(dir_name, "dir%ld", thread_id * total_file + id);
+  //   for (int d = 0; d < depth - 1; d++) {
+  //     strcat(path, dir_name);
+  //     strcat(path, "/");
+  //   }
+  //   strcat(path, file_name);
+  //   test_stat(cli, path, thread_id);
+  // }
 
   for (i = 0; i < total_file; i++) {
     strcpy(path, basic_path);
@@ -423,6 +444,107 @@ static void bench_motivation_remote_access_cnt(ethanefs_cli_t *cli) {
           dm_access_counter[1][0], dm_access_counter[1][1], dm_access_counter[1][2], dm_access_counter[1][3], dm_access_counter[1][4], dm_access_counter[1][5], dm_access_counter[1][6], dm_access_counter[1][7], dm_access_counter[1][8], dm_access_counter[1][9], dm_access_counter[1][10], dm_access_counter[1][11], dm_access_counter[1][12], dm_access_counter[1][13],
           dm_access_counter[2][0], dm_access_counter[2][1], dm_access_counter[2][2], dm_access_counter[2][3], dm_access_counter[2][4], dm_access_counter[2][5], dm_access_counter[2][6], dm_access_counter[2][7], dm_access_counter[2][8], dm_access_counter[2][9], dm_access_counter[2][10], dm_access_counter[2][11], dm_access_counter[2][12], dm_access_counter[2][13],
           dm_access_counter[3][0], dm_access_counter[3][1], dm_access_counter[3][2], dm_access_counter[3][3], dm_access_counter[3][4], dm_access_counter[3][5], dm_access_counter[3][6], dm_access_counter[3][7], dm_access_counter[3][8], dm_access_counter[3][9], dm_access_counter[3][10], dm_access_counter[3][11], dm_access_counter[3][12], dm_access_counter[3][13]);
+}
+
+// =========== motivation ============
+
+void bubbleSort(uint64_t *arr, size_t length) {
+  for (size_t i = 0; i < length - 1; i++) {
+    for (size_t j = 0; j < length - 1 - i; j++) {
+      if (arr[j] > arr[j + 1]) {
+          uint64_t temp = arr[j];
+          arr[j] = arr[j + 1];
+          arr[j + 1] = temp;
+      }
+    }
+  }
+}
+
+static void bench_motivation_load(ethanefs_cli_t *cli) {
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 4;
+  const int total_meta = 251000;
+  const int total_file = total_meta / depth;
+  const int stat_count = 100000000;
+
+  char basic_path[64];
+  // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+  sprintf(basic_path, "/");
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%d", i);
+    sprintf(dir_name, "dir%d", i);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    test_mkdir_recur(cli, path, false, true, thread_id);
+    strcat(path, file_name);
+    test_creat(cli, path, thread_id);
+  }
+}
+
+static void bench_motivation_stat(ethanefs_cli_t *cli) {
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 4;
+  const int total_meta = 251000;
+  const int total_file = total_meta / depth;
+  const int stat_count = 100000;
+
+  char basic_path[64];
+  // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+  sprintf(basic_path, "/");
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+
+  uint64_t* stat_lat = (uint64_t*)malloc(sizeof(uint64_t) * stat_count);
+  for (i = 0; i < stat_count; i++) {
+    int id = random() % total_file;
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%d", id);
+    sprintf(dir_name, "dir%d", id);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    strcat(path, file_name);
+    // stat
+    struct bench_timer timer;
+    uint64_t elapsed_ns = 0;
+    bench_timer_start(&timer);
+    test_stat(cli, path, thread_id);
+    stat_lat[i] = bench_timer_end(&timer);
+  }
+
+  // IO time
+  pr_info("remote access cnt:\n"
+          "RDMA READ: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA WRITE: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA CAS: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA FAA: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n",
+          dm_access_counter[0][0], dm_access_counter[0][1], dm_access_counter[0][2], dm_access_counter[0][3], dm_access_counter[0][4], dm_access_counter[0][5], dm_access_counter[0][6], dm_access_counter[0][7], dm_access_counter[0][8], dm_access_counter[0][9], dm_access_counter[0][10], dm_access_counter[0][11], dm_access_counter[0][12], dm_access_counter[0][13],
+          dm_access_counter[1][0], dm_access_counter[1][1], dm_access_counter[1][2], dm_access_counter[1][3], dm_access_counter[1][4], dm_access_counter[1][5], dm_access_counter[1][6], dm_access_counter[1][7], dm_access_counter[1][8], dm_access_counter[1][9], dm_access_counter[1][10], dm_access_counter[1][11], dm_access_counter[1][12], dm_access_counter[1][13],
+          dm_access_counter[2][0], dm_access_counter[2][1], dm_access_counter[2][2], dm_access_counter[2][3], dm_access_counter[2][4], dm_access_counter[2][5], dm_access_counter[2][6], dm_access_counter[2][7], dm_access_counter[2][8], dm_access_counter[2][9], dm_access_counter[2][10], dm_access_counter[2][11], dm_access_counter[2][12], dm_access_counter[2][13],
+          dm_access_counter[3][0], dm_access_counter[3][1], dm_access_counter[3][2], dm_access_counter[3][3], dm_access_counter[3][4], dm_access_counter[3][5], dm_access_counter[3][6], dm_access_counter[3][7], dm_access_counter[3][8], dm_access_counter[3][9], dm_access_counter[3][10], dm_access_counter[3][11], dm_access_counter[3][12], dm_access_counter[3][13]);
+  // P99 latency
+  bubbleSort(stat_lat, stat_count);
+  pr_info("P99 latency: %ld, P9999 latency: %ld", stat_lat[stat_count * 99 / 100], stat_lat[stat_count * 9999 / 10000]);
 }
 
 // =========== =========
@@ -773,4 +895,5 @@ static void bench_path_walk_lat(ethanefs_cli_t *cli) {
     }
 }
 
-SET_WORKER_FN(bench_motivation_remote_access_cnt);
+// SET_WORKER_FN(bench_motivation_load);
+SET_WORKER_FN(bench_motivation_stat);

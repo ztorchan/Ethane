@@ -813,7 +813,7 @@ int logger_set_gc_head_async(logger_t *logger, int shard, size_t gc_head) {
     ret = dm_write(logger->ctx, logger->gc_heads_remote_addr + shard * sizeof(size_t), gc_head, 0);
     ret = dm_barrier(logger->ctx);
     dm_pop(logger->ctx);
-    pr_debug("shard:%d gc_head:%lu", shard, gc_head);
+    pr_info("shard:%d gc_head:%lu", shard, gc_head);
     return ret;
 }
 
@@ -851,6 +851,7 @@ _Noreturn void logger_cache_fetcher_loop(logger_t *logger) {
         /* update head and tail pointer */
         global->mlog_cache_head = meta.mlog_head;
         global->mlog_cache_tail = meta.mlog_tail;
+        // pr_info("mlog_cache_head: %lu, mlog_cache_tail: %lu", global->mlog_cache_head, global->mlog_cache_tail);
         barrier();
 
         if (meta.mlog_tail <= tail) {
@@ -957,6 +958,9 @@ _Noreturn void logger_gc_loop(logger_mn_t *logger, int nr_gc_shards) {
         if (ptr.len) {
             tail++;
             WRITE_ONCE(info->meta.mlog_tail, tail);
+            // READ_ONCE(info->meta.mlog_tail);
+            // READ_ONCE(info->meta.mlog_head);
+            // pr_info("info->meta.mlog_head: %lu, info->meta.mlog_tail: %lu", info->meta.mlog_head, info->meta.mlog_tail);
         }
 
         if (i % gc_head_interval == 0) {
@@ -966,11 +970,11 @@ _Noreturn void logger_gc_loop(logger_mn_t *logger, int nr_gc_shards) {
                     min_gc_head = info->gc_heads[i];
                 }
             }
-
+            // pr_info("min_gc_head: %lu, info->meta.mlog_head: %lu", min_gc_head, info->meta.mlog_head);
             if (min_gc_head > info->meta.mlog_head) {
                 /* GC logs before head */
                 WRITE_ONCE(info->meta.mlog_head, min_gc_head);
-                pr_debug("change head to %lu, current range: [%lu, %lu)", min_gc_head, min_gc_head, tail);
+                pr_info("change head to %lu, current range: [%lu, %lu)", min_gc_head, min_gc_head, tail);
             }
         }
     }
