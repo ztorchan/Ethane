@@ -549,7 +549,9 @@ static int fetch_path_prefixes_to_cache(cachefs_t *cfs, const char *path,
             entry->dentry.type = ETHANE_DENTRY_TOMBSTONE;
             pr_debug("component %d (%.*s) is a tombstone", i, (int) prefix_len, path);
         }
-
+        if (!(!dentries[i]->parent || dentries[i]->parent == parent)) {
+          pr_info("component %s parent mismatch: %lx != %lx", dentries[i]->filename, dentries[i]->parent, parent);
+        }
         ethane_assert(!dentries[i]->parent || dentries[i]->parent == parent);
         dentries[i]->parent = parent;
         parent = dentries[i]->remote_addr;

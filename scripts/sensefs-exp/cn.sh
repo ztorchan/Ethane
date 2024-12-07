@@ -14,7 +14,7 @@ source $SCRIPT_DIR/common.sh
 cluster_clear_ready
 
 # bench
-$PROJECT_DIR/build/launch -t $SCRIPT_DIR/cli.yaml -z localhost:2181 -n 40 -c 1 -l $PROJECT_DIR/build/libbench.so &
+$PROJECT_DIR/build/launch -t $SCRIPT_DIR/cli.yaml -z localhost:2181 -n 96 -c 1 -l $PROJECT_DIR/build/libbench.so &
 launch_id=$!
 
 cluster_wait_ready 1

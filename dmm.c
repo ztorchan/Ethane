@@ -267,6 +267,7 @@ dmm_cli_t *dmm_cli_init(dmm_cn_t *dmm_cn, dmcontext_t *ctx, size_t init_pool_siz
         return NULL;
     }
     for (i = 0; i < dmm_cn->nr_mns; i++) {
+        pr_info("initializing free block list for memory node %d, size: %ld", dmm_cn->mn_ids[i], pool_size_per_mn);
         list = &dmm->free_blk_lists[i];
 
         list->mn_id = dmm_cn->mn_ids[i];
@@ -384,7 +385,7 @@ dmptr_t dmm_balloc(dmm_cli_t *dmm, size_t size, size_t align, dmptr_t locality_h
     // } else {
     //     list = auto_choose_list(dmm);
     // }
-    list = dmm->free_blk_lists;
+    list = &dmm->free_blk_lists[0];
     return do_balloc(list, size, align);
 }
 

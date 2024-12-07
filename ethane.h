@@ -136,6 +136,7 @@ struct ethane_dentry {
     struct ethane_perm perm;
 
     size_t file_size;
+    char _pad[212];
 
     /* only for ETHANE_DENTRY_DIR */
     int nr_children;
