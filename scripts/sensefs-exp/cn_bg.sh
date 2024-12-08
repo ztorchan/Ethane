@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -ex
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")

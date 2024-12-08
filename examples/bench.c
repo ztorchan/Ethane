@@ -70,7 +70,7 @@ struct GlobalStatistic {
   atomic_uint_fast64_t total_cnt;
   atomic_uint_fast64_t thread_num;
   atomic_uint_fast64_t running_thread;
-  struct ThreadLocalStatistic thread_statistic[128];
+  struct ThreadLocalStatistic thread_statistic[256];
 };
 
 struct GlobalStatistic global_statistic = {
