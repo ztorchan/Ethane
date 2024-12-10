@@ -34,6 +34,8 @@
 #include "rand.h"
 #include "ethane.h"
 
+#define PRINT_INTERVAL                  10000000
+
 #define SHOW_THROUGHPUT_INTERVAL         1000
 
 #define DELAY_US   10
@@ -63,6 +65,7 @@ struct ThreadLocalStatistic {
   atomic_uint_fast64_t unlink_time;
   atomic_uint_fast64_t stat_time;
 
+  struct bench_timer timer;
   void* _ext;
 };
 
@@ -230,7 +233,7 @@ int test_mkdir(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
     // pr_err("mkdir %s failed: %s", path, strerror(-ret));
     atomic_fetch_add(&global_statistic.thread_statistic[thread_id].mkdir_fail_cnt, 1);
   }
-  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % PRINT_INTERVAL == 0) {
     print_statistic();
   }
   return ret;
@@ -270,7 +273,7 @@ int test_rmdir(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
     // pr_err("rmdir %s failed: %s", path, strerror(-ret));
     atomic_fetch_add(&global_statistic.thread_statistic[thread_id].rmdir_fail_cnt, 1);
   }
-  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % PRINT_INTERVAL == 0) {
     print_statistic();
   }
   return ret;
@@ -285,7 +288,7 @@ int test_creat(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
   elapsed_ns += bench_timer_end(&timer);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].creat_time, elapsed_ns);
   atomic_fetch_add(&global_statistic.thread_statistic[thread_id].creat_cnt, 1);
-  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 10000 == 0) {
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % PRINT_INTERVAL == 0) {
     print_statistic();
   }
   if (IS_ERR(fh)) {
@@ -330,7 +333,7 @@ int test_stat(ethanefs_cli_t *cli, const char* path, uint64_t thread_id) {
     // pr_err("stat %s failed: %s", path, strerror(-ret));
     atomic_fetch_add(&global_statistic.thread_statistic[thread_id].stat_fail_cnt, 1);
   }
-  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % 100000 == 0) {
+  if (atomic_fetch_add(&global_statistic.total_cnt, 1) % PRINT_INTERVAL == 0) {
     print_statistic();
   }
   return ret;
@@ -343,7 +346,7 @@ static void bench_test(ethanefs_cli_t *cli) {
 
   int ret = 0;
   struct stat buf;
-  const int depth = 8;
+  const int depth = 4;
   const int total_meta = 251000;
   const int total_file = total_meta / depth;
   const int stat_count = 100000000;
@@ -420,7 +423,7 @@ static void bench_motivation_load(ethanefs_cli_t *cli) {
 
   int ret = 0;
   struct stat buf;
-  const int depth = 4;
+  const int depth = 8;
   const int total_meta = 1000000;
   const int total_file = total_meta / depth;
 
@@ -463,10 +466,10 @@ static void bench_motivation_stat(ethanefs_cli_t *cli) {
 
   int ret = 0;
   struct stat buf;
-  const int depth = 4;
+  const int depth = 8;
   const int total_meta = 1000000;
   const int total_file = total_meta / depth;
-  const int stat_count = 100000;
+  const int stat_count = 50000;
 
   char basic_path[64];
   // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
@@ -518,7 +521,7 @@ static void bench_motivation_stat(ethanefs_cli_t *cli) {
     }
 
     qsort(lats, global_statistic.thread_num * stat_count, sizeof(uint64_t), uint64_cmpfunc);
-    pr_info("P99 latency: %ld, P999 latency: %ld, P9999 latency: %ld", lats[stat_count * global_statistic.thread_num * 99 / 100], lats[stat_count * global_statistic.thread_num * 999 / 1000], lats[stat_count * global_statistic.thread_num * 9999 / 10000]);
+    pr_info("min latency: %ld, P10 latency: %ld, P50 latency: %ld, P99 latency: %ld, P999 latency: %ld, P9999 latency: %ld", lats[0], lats[stat_count * global_statistic.thread_num / 10], lats[stat_count * global_statistic.thread_num / 2], lats[stat_count * global_statistic.thread_num * 99 / 100], lats[stat_count * global_statistic.thread_num * 999 / 1000], lats[stat_count * global_statistic.thread_num * 9999 / 10000]);
     free(lats);
   }
 }
@@ -871,5 +874,5 @@ static void bench_path_walk_lat(ethanefs_cli_t *cli) {
     }
 }
 
-// SET_WORKER_FN(bench_motivation_load);
-SET_WORKER_FN(bench_motivation_stat);
+SET_WORKER_FN(bench_motivation_load);
+// SET_WORKER_FN(bench_motivation_stat);

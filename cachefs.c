@@ -505,6 +505,7 @@ static int fetch_path_prefixes_to_cache(cachefs_t *cfs, const char *path,
         prefix_len = component + len - path;
 
         if ((entry = nsc_lookup(nsc, path, prefix_len))) {
+        // if (0) {
             dentries[i] = &entry->dentry;
 
             pr_debug("component %d (%.*s) found in cache", i, (int) prefix_len, path);

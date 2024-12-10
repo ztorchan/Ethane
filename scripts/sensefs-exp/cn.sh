@@ -17,7 +17,7 @@ cluster_clear_ready
 cluster_disable
 
 # bench
-$PROJECT_DIR/build/launch -t $SCRIPT_DIR/cli.yaml -z localhost:2181 -n 32 -c 4 -l $PROJECT_DIR/build/libbench.so &
+$PROJECT_DIR/build/launch -t $SCRIPT_DIR/cli.yaml -z localhost:2181 -n 1 -c 1 -l $PROJECT_DIR/build/libbench.so &
 launch_id=$!
 
 cluster_wait_ready 1
