@@ -164,6 +164,7 @@ static inline void nsc_lru_add(struct ns_cache *cache, struct lru_bucket *bucket
         nr_evict = nsc_entry_evict(cache, bucket, nr_evict);
         bucket->count -= nr_evict;
         cache->count -= nr_evict;
+        // pr_info("evicted %d entries from bucket %ld", nr_evict, full_path_hash(cache, entry->full_path, strlen(entry->full_path)) % cache->nr_buckets);
     }
 
     /* add to LRU list head */
@@ -480,6 +481,8 @@ static inline int bmc_remove(struct bm_cache *cache, struct bm_entry *entry) {
     return 0;
 }
 
+atomic_uint_fast64_t total_fetch = 0;
+atomic_uint_fast64_t total_hit_in_cache = 0;
 static int fetch_path_prefixes_to_cache(cachefs_t *cfs, const char *path,
                                         struct ns_entry **parent_ent, struct ns_entry **ent) {
     struct ns_cache *nsc = &cfs->nsc;
@@ -504,10 +507,11 @@ static int fetch_path_prefixes_to_cache(cachefs_t *cfs, const char *path,
     ETHANE_ITER_COMPONENTS(path, component, next, len) {
         prefix_len = component + len - path;
 
+        atomic_fetch_add(&total_fetch, 1);
         if ((entry = nsc_lookup(nsc, path, prefix_len))) {
         // if (0) {
             dentries[i] = &entry->dentry;
-
+            atomic_fetch_add(&total_hit_in_cache, 1);
             pr_debug("component %d (%.*s) found in cache", i, (int) prefix_len, path);
         } else {
             entry = calloc(1, sizeof(*entry) + prefix_len + 1);

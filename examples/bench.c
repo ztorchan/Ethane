@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include "cachefs.h"
 #include "ethanefs.h"
 #include "bench.h"
 
@@ -34,7 +35,7 @@
 #include "rand.h"
 #include "ethane.h"
 
-#define PRINT_INTERVAL                  10000000
+#define PRINT_INTERVAL                  100000
 
 #define SHOW_THROUGHPUT_INTERVAL         1000
 
@@ -423,7 +424,7 @@ static void bench_motivation_load(ethanefs_cli_t *cli) {
 
   int ret = 0;
   struct stat buf;
-  const int depth = 8;
+  const int depth = 4;
   const int total_meta = 1000000;
   const int total_file = total_meta / depth;
 
@@ -466,10 +467,10 @@ static void bench_motivation_stat(ethanefs_cli_t *cli) {
 
   int ret = 0;
   struct stat buf;
-  const int depth = 8;
+  const int depth = 4;
   const int total_meta = 1000000;
   const int total_file = total_meta / depth;
-  const int stat_count = 50000;
+  const int stat_count = 2000000;
 
   char basic_path[64];
   // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
@@ -503,6 +504,8 @@ static void bench_motivation_stat(ethanefs_cli_t *cli) {
   if (atomic_fetch_sub(&global_statistic.running_thread, 1) == 1) {
     // statistic
     print_statistic();
+    // cache hit
+    pr_info("cache hit: %ld, total: %ld, hit rate: %f", total_hit_in_cache, total_fetch, (double)total_hit_in_cache / total_fetch);
     // IO time
     pr_info("remote access cnt:\n"
           "RDMA READ: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
@@ -874,5 +877,5 @@ static void bench_path_walk_lat(ethanefs_cli_t *cli) {
     }
 }
 
-SET_WORKER_FN(bench_motivation_load);
-// SET_WORKER_FN(bench_motivation_stat);
+// SET_WORKER_FN(bench_motivation_load);
+SET_WORKER_FN(bench_motivation_stat);

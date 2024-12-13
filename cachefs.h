@@ -21,6 +21,7 @@
 #define ETHANE_CACHEFS_H
 
 #include <sys/stat.h>
+#include <stdatomic.h>
 
 #include "dmpool.h"
 #include "dmm.h"
@@ -41,6 +42,9 @@ struct cachefs_blk {
 };
 
 struct sharedfs;
+
+extern atomic_uint_fast64_t total_fetch;
+extern atomic_uint_fast64_t total_hit_in_cache;
 
 cachefs_t *cachefs_init(struct dmcontext *dmcontext, struct dmm_cli *dmm, struct sharedfs *rfs,
                         size_t max_nsc_size, size_t nsc_size_high_watermark,

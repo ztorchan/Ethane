@@ -498,19 +498,19 @@ int ethanefs_getattr(ethanefs_cli_t *cli, const char *path, struct stat *stbuf) 
     get_oplogger_ctx(cli, cli->oplogger, &oplogger_ctx);
     get_cachefs_ctx(cli, &cachefs_ctx);
 
-    old_v = oplogger_snapshot_begin(cli->oplogger, &oplogger_ctx);
+    // old_v = oplogger_snapshot_begin(cli->oplogger, &oplogger_ctx);
 
-    ret = oplogger_replay_getattr(cli->oplogger, &oplogger_ctx, path, false, 0);
-    if (unlikely(ret < 0)) {
-        goto out;
-    }
+    // ret = oplogger_replay_getattr(cli->oplogger, &oplogger_ctx, path, false, 0);
+    // if (unlikely(ret < 0)) {
+    //     goto out;
+    // }
 
-    oplogger_snapshot_end(cli->oplogger, &oplogger_ctx, old_v);
+    // oplogger_snapshot_end(cli->oplogger, &oplogger_ctx, old_v);
 
-    ret = oplogger_replay_getattr(cli->oplogger, &oplogger_ctx, path, false, 0);
-    if (unlikely(ret < 0)) {
-        goto out;
-    }
+    // ret = oplogger_replay_getattr(cli->oplogger, &oplogger_ctx, path, false, 0);
+    // if (unlikely(ret < 0)) {
+    //     goto out;
+    // }
 
     /* perform the actual operation */
     ret = cachefs_getattr(cli->cfs, &cachefs_ctx, path, stbuf);
