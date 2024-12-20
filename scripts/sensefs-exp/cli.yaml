@@ -1,5 +1,5 @@
 net:
-  # local_buf_size_mb: 256
+  # local_buf_size_mb: 1024
   local_buf_size_mb: 64
 
 dmm:
@@ -7,8 +7,8 @@ dmm:
   pmem_initial_alloc_size_mb: 64
 
 cachefs:
-  namespace_cache_size_max_mb: 256
-  namespace_cache_size_high_watermark_mb: 256
+  namespace_cache_size_max_mb: 32
+  namespace_cache_size_high_watermark_mb: 32
   block_mapping_cache_size_max_mb: 16
   block_mapping_cache_size_high_watermark_mb: 8
 
@@ -17,7 +17,7 @@ sharedfs:
 
 logger:
   global_shm_path: "/dev/shm/ethane-log"
-  # local_log_region_size_mb: 256
+  # local_log_region_size_mb: 1024
   local_log_region_size_mb: 32
   log_read_batch_size: 16
 

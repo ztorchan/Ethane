@@ -283,7 +283,7 @@ void ethanefs_set_user(ethanefs_cli_t *cli, uid_t uid, gid_t gid) {
 }
 
 void ethanefs_clean_cli(ethanefs_cli_t *cli) {
-    pr_info("clean cli %d", ethanefs_get_cli_id(cli));
+    // pr_info("clean cli %d", ethanefs_get_cli_id(cli));
     cachefs_clean(cli->cfs);
     oplogger_clean(cli->oplogger);
 }
@@ -1263,7 +1263,7 @@ _Noreturn void ethanefs_checkpoint_loop(ethanefs_cli_t *cli, ethanefs_logd_confi
 
     set_oplogger_shard(cli, &oplogger_ctx, config->checkpoint.nr_shards, shard);
     set_replay_cb(cli, &oplogger_ctx, replay_cb, &replay_ctx);
-    set_oplogger_wait_check(cli, &oplogger_ctx, true);
+    set_oplogger_wait_check(cli, &oplogger_ctx, false);
     set_oplogger_private_data(cli, &oplogger_ctx, cli);
 
     replay_ctx.shard = shard;

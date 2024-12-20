@@ -1080,6 +1080,7 @@ void *dm_push(dmcontext_t *ctx, const void *data, size_t size) {
 
     cli_ctx->op_buf_used = ALIGN_UP(cli_ctx->op_buf_used, CACHELINE_SIZE);
 
+    // pr_info("cli_ctx->op_buf_size: %ld, cli_ctx->op_buf_used: %ld, size: %ld", cli_ctx->op_buf_size, cli_ctx->op_buf_used, size);
     if (cli_ctx->op_buf_used + size > cli_ctx->op_buf_size) {
         pr_err("local buffer overflow");
         goto out;

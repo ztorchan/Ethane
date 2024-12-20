@@ -15,7 +15,7 @@ sharedfs:
 
 logger:
   global_shm_path: "/dev/shm/ethane-log"
-  local_log_region_size_mb: 16
+  local_log_region_size_mb: 1024
   log_read_batch_size: 16
 
 lock:

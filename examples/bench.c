@@ -35,7 +35,7 @@
 #include "rand.h"
 #include "ethane.h"
 
-#define PRINT_INTERVAL                  100000
+#define PRINT_INTERVAL                  10000
 
 #define SHOW_THROUGHPUT_INTERVAL         1000
 
@@ -44,6 +44,8 @@
 #define K 224
 
 #define SET_WORKER_FN(fn)      void worker_fn(ethanefs_cli_t *) __attribute__((alias(#fn)))
+
+#define NODE_ID 0
 
 // =========== =========
 
@@ -417,6 +419,91 @@ static void bench_test(ethanefs_cli_t *cli) {
 
 // =========== motivation ============
 
+static void bench_motivation_remote_time(ethanefs_cli_t *cli) { 
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  atomic_fetch_add(&global_statistic.running_thread, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 4;
+  const int total_meta = 40000;
+  const int total_file = total_meta / depth;
+
+  char basic_path[64];
+  // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+  sprintf(basic_path, "/");
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+  // for (i = 0; i < total_file; i++) {
+  //   strcpy(path, basic_path);
+  //   sprintf(file_name, "file%ld", thread_id * total_file + i);
+  //   sprintf(dir_name, "dir%ld", thread_id * total_file + i);
+  //   for (int d = 0; d < depth - 1; d++) {
+  //     strcat(path, dir_name);
+  //     strcat(path, "/");
+  //   }
+  //   test_mkdir_recur(cli, path, false, true, thread_id);
+  //   strcat(path, file_name);
+  //   test_creat(cli, path, thread_id);
+  // }
+
+  // int err = 0;
+  // for (i = 0; i < total_file; i++) {
+  //   int id = i % total_file;
+  //   strcpy(path, basic_path);
+  //   sprintf(file_name, "file%ld", thread_id * total_file + id);
+  //   sprintf(dir_name, "dir%ld", thread_id * total_file + id);
+  //   for (int d = 0; d < depth - 1; d++) {
+  //     strcat(path, dir_name);
+  //     strcat(path, "/");
+  //   }
+  //   strcat(path, file_name);
+  //   test_stat(cli, path, thread_id);
+  // }
+
+  // for (i = 0; i < total_file; i++) {
+  //   strcpy(path, basic_path);
+  //   sprintf(file_name, "file%ld", thread_id * total_file + i);
+  //   sprintf(dir_name, "dir%ld", thread_id * total_file + i);
+  //   for (int d = 0; d < depth - 1; d++) {
+  //     strcat(path, dir_name);
+  //     strcat(path, "/");
+  //   }
+  //   strcat(path, file_name);
+  //   test_unlink(cli, path, thread_id);
+  // }
+  
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(dir_name, "dir%ld", thread_id * total_file + i);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    // Remove from deepest to shallowest
+    for (int d = depth - 1; d > 0; d--) {
+      path[strlen(path) - 1] = '\0';
+      test_rmdir(cli, path, thread_id);
+      path[strlen(path) - strlen(dir_name)] = '\0'; // Trim last directory
+    }
+  }
+
+  print_statistic();
+  pr_info("remote access cnt:\n"
+          "RDMA READ: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA WRITE: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA CAS: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA FAA: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n",
+          dm_access_counter[0][0], dm_access_counter[0][1], dm_access_counter[0][2], dm_access_counter[0][3], dm_access_counter[0][4], dm_access_counter[0][5], dm_access_counter[0][6], dm_access_counter[0][7], dm_access_counter[0][8], dm_access_counter[0][9], dm_access_counter[0][10], dm_access_counter[0][11], dm_access_counter[0][12], dm_access_counter[0][13],
+          dm_access_counter[1][0], dm_access_counter[1][1], dm_access_counter[1][2], dm_access_counter[1][3], dm_access_counter[1][4], dm_access_counter[1][5], dm_access_counter[1][6], dm_access_counter[1][7], dm_access_counter[1][8], dm_access_counter[1][9], dm_access_counter[1][10], dm_access_counter[1][11], dm_access_counter[1][12], dm_access_counter[1][13],
+          dm_access_counter[2][0], dm_access_counter[2][1], dm_access_counter[2][2], dm_access_counter[2][3], dm_access_counter[2][4], dm_access_counter[2][5], dm_access_counter[2][6], dm_access_counter[2][7], dm_access_counter[2][8], dm_access_counter[2][9], dm_access_counter[2][10], dm_access_counter[2][11], dm_access_counter[2][12], dm_access_counter[2][13],
+          dm_access_counter[3][0], dm_access_counter[3][1], dm_access_counter[3][2], dm_access_counter[3][3], dm_access_counter[3][4], dm_access_counter[3][5], dm_access_counter[3][6], dm_access_counter[3][7], dm_access_counter[3][8], dm_access_counter[3][9], dm_access_counter[3][10], dm_access_counter[3][11], dm_access_counter[3][12], dm_access_counter[3][13]);
+}
+
 static void bench_motivation_load(ethanefs_cli_t *cli) {
   uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
   atomic_fetch_add(&global_statistic.running_thread, 1);
@@ -526,6 +613,279 @@ static void bench_motivation_stat(ethanefs_cli_t *cli) {
     qsort(lats, global_statistic.thread_num * stat_count, sizeof(uint64_t), uint64_cmpfunc);
     pr_info("min latency: %ld, P10 latency: %ld, P50 latency: %ld, P99 latency: %ld, P999 latency: %ld, P9999 latency: %ld", lats[0], lats[stat_count * global_statistic.thread_num / 10], lats[stat_count * global_statistic.thread_num / 2], lats[stat_count * global_statistic.thread_num * 99 / 100], lats[stat_count * global_statistic.thread_num * 999 / 1000], lats[stat_count * global_statistic.thread_num * 9999 / 10000]);
     free(lats);
+  }
+}
+
+// =========== =========
+
+static void bench_evaluation_write_throughput_workload_A(ethanefs_cli_t *cli) {
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  atomic_fetch_add(&global_statistic.running_thread, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  uint64_t total_file = 250000;
+
+  char basic_path[64];
+  char path[1024];
+  char file_name[64];
+
+  sprintf(basic_path, "/private-dir.%d.%ld/", NODE_ID, thread_id);
+  test_mkdir_recur(cli, basic_path, false, true, thread_id);
+
+  for (uint64_t i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file.%ld", i);
+    strcat(path, file_name);
+    // stat
+    struct bench_timer timer;
+    uint64_t elapsed_ns = 0;
+    bench_timer_start(&timer);
+    test_creat(cli, path, thread_id);
+  }
+
+  for (uint64_t i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file.%ld", i);
+    strcat(path, file_name);
+    // stat
+    struct bench_timer timer;
+    uint64_t elapsed_ns = 0;
+    bench_timer_start(&timer);
+    test_unlink(cli, path, thread_id);
+  }
+
+  if (atomic_fetch_sub(&global_statistic.running_thread, 1) == 1) {
+    // statistic
+    print_statistic();
+  }
+}
+
+static void bench_evaluation_write_throughput_workload_B(ethanefs_cli_t *cli) {
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  atomic_fetch_add(&global_statistic.running_thread, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 8;
+  const int total_meta = 20000;
+  const int total_file = total_meta / depth;
+
+  char basic_path[64];
+  // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+  sprintf(basic_path, "/");
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%ld", (thread_id + 64 * NODE_ID) * total_file + i);
+    sprintf(dir_name, "dir%ld", (thread_id + 64 * NODE_ID) * total_file + i);
+    for (int d = 0; d < depth; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    test_mkdir_recur(cli, path, false, true, thread_id);
+    // strcat(path, file_name);
+    // test_creat(cli, path, thread_id);
+  }
+
+  // for (i = 0; i < total_file; i++) {
+  //   strcpy(path, basic_path);
+  //   sprintf(file_name, "file%ld", (thread_id + 64 * NODE_ID) * total_file + i);
+  //   sprintf(dir_name, "dir%ld", (thread_id + 64 * NODE_ID) * total_file + i);
+  //   for (int d = 0; d < depth - 1; d++) {
+  //     strcat(path, dir_name);
+  //     strcat(path, "/");
+  //   }
+  //   strcat(path, file_name);
+  //   test_unlink(cli, path, thread_id);
+  // }
+  
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(dir_name, "dir%ld", (thread_id + 64 * NODE_ID) * total_file + i);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    // Remove from deepest to shallowest
+    for (int d = depth; d > 0; d--) {
+      path[strlen(path) - 1] = '\0';
+      test_rmdir(cli, path, thread_id);
+      path[strlen(path) - strlen(dir_name)] = '\0'; // Trim last directory
+    }
+  }
+}
+
+static void bench_evaluation_write_latency(ethanefs_cli_t *cli) {
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 4;
+  const int total_meta = 10000;
+  const int total_file = total_meta / depth;
+
+  char basic_path[64];
+  // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+  sprintf(basic_path, "/");
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%ld", thread_id * total_file + i);
+    sprintf(dir_name, "dir%ld", thread_id * total_file + i);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    test_mkdir_recur(cli, path, false, true, thread_id);
+    strcat(path, file_name);
+    test_creat(cli, path, thread_id);
+  }
+
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%ld", thread_id * total_file + i);
+    sprintf(dir_name, "dir%ld", thread_id * total_file + i);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    strcat(path, file_name);
+    test_unlink(cli, path, thread_id);
+  }
+  
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(dir_name, "dir%ld", thread_id * total_file + i);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    // Remove from deepest to shallowest
+    for (int d = depth - 1; d > 0; d--) {
+      path[strlen(path) - 1] = '\0';
+      test_rmdir(cli, path, thread_id);
+      path[strlen(path) - strlen(dir_name)] = '\0'; // Trim last directory
+    }
+  }
+  print_statistic();
+}
+
+// =========== =========
+
+static void bench_evalution_stat_load(ethanefs_cli_t *cli) {
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  atomic_fetch_add(&global_statistic.running_thread, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 8;
+  const int total_meta = 1000000;
+  const int total_file = total_meta / depth;
+
+  char basic_path[64];
+  // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+  sprintf(basic_path, "/");
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+  for (i = 0; i < total_file; i++) {
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%d", i);
+    sprintf(dir_name, "dir%d", i);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    test_mkdir_recur(cli, path, false, true, thread_id);
+    strcat(path, file_name);
+    test_creat(cli, path, thread_id);
+  }
+  atomic_fetch_sub(&global_statistic.running_thread, 1);
+}
+
+static void bench_evalution_stat(ethanefs_cli_t *cli) {
+  uint64_t thread_id = atomic_fetch_add(&global_statistic.thread_num, 1);
+  atomic_fetch_add(&global_statistic.running_thread, 1);
+  init_statistic(thread_id);
+
+  int ret = 0;
+  struct stat buf;
+  const int depth = 8;
+  const int total_meta = 1000000;
+  const int total_file = total_meta / depth;
+  const uint64_t stat_count = 1000000;
+  const uint64_t group_size = 1000;
+  const uint64_t total_group = total_file / group_size;
+  uint64_t cur_group = 0;
+
+  global_statistic.thread_statistic[thread_id]._ext = (void*)malloc(sizeof(uint64_t) * stat_count);
+  uint64_t* stat_lat = (uint64_t*)global_statistic.thread_statistic[thread_id]._ext;
+
+  char basic_path[64];
+  // sprintf(basic_path, "/uniuqe_dir.%ld/", thread_id);
+  sprintf(basic_path, "/");
+
+  char path[1024];
+  char dir_name[64];
+  char file_name[64];
+  int i;
+  uint64_t cur_total_lat = 0;
+  for (i = 0; i < stat_count; i++) {
+    cur_total_lat = global_statistic.thread_statistic[thread_id].stat_time;
+    if (random() % 1000 < 10) {
+      cur_group = random() % total_group;
+    }
+    uint64_t file_id = cur_group * group_size + random() % group_size;
+    strcpy(path, basic_path);
+    sprintf(file_name, "file%ld", file_id);
+    sprintf(dir_name, "dir%ld", file_id);
+    for (int d = 0; d < depth - 1; d++) {
+      strcat(path, dir_name);
+      strcat(path, "/");
+    }
+    strcat(path, file_name);
+    test_stat(cli, path, thread_id);
+    stat_lat[i] = global_statistic.thread_statistic[thread_id].stat_time - cur_total_lat;
+    cur_total_lat = global_statistic.thread_statistic[thread_id].stat_time;
+  }
+  if (atomic_fetch_sub(&global_statistic.running_thread, 1) == 1) {
+    print_statistic();
+    // tail latency
+    uint64_t* lats = (uint64_t*)malloc(sizeof(uint64_t) * global_statistic.thread_num * stat_count);
+    for (uint64_t i = 0; i < global_statistic.thread_num; i++) {
+      memmove(lats + i * stat_count, global_statistic.thread_statistic[i]._ext, sizeof(uint64_t) * stat_count);
+      free(global_statistic.thread_statistic[i]._ext);
+    }
+
+    qsort(lats, global_statistic.thread_num * stat_count, sizeof(uint64_t), uint64_cmpfunc);
+    pr_info("min latency: %ld, P10 latency: %ld, P50 latency: %ld, P99 latency: %ld, P999 latency: %ld, P9999 latency: %ld", lats[0], lats[stat_count * global_statistic.thread_num / 10], lats[stat_count * global_statistic.thread_num / 2], lats[stat_count * global_statistic.thread_num * 99 / 100], lats[stat_count * global_statistic.thread_num * 999 / 1000], lats[stat_count * global_statistic.thread_num * 9999 / 10000]);
+    free(lats);
+    // hit rate
+    pr_info("cache hit: %ld, total: %ld, hit rate: %f", total_hit_in_cache, total_fetch, (double)total_hit_in_cache / total_fetch);
+    // remote access
+    pr_info("remote access cnt:\n"
+          "RDMA READ: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA WRITE: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA CAS: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n"
+          "RDMA FAA: [0, 8]: %ld, (8, 16]: %ld, (16, 32]: %ld, (32, 64]: %ld, (64, 96]: %ld, (96, 128]: %ld, (128, 192]: %ld, (192, 256]: %ld, (256, 384]: %ld, (384, 512]: %ld, (512, 768]: %ld, (768, 1024]: %ld, (1024, 1536]: %ld, (1536, +): %ld\n",
+          dm_access_counter[0][0], dm_access_counter[0][1], dm_access_counter[0][2], dm_access_counter[0][3], dm_access_counter[0][4], dm_access_counter[0][5], dm_access_counter[0][6], dm_access_counter[0][7], dm_access_counter[0][8], dm_access_counter[0][9], dm_access_counter[0][10], dm_access_counter[0][11], dm_access_counter[0][12], dm_access_counter[0][13],
+          dm_access_counter[1][0], dm_access_counter[1][1], dm_access_counter[1][2], dm_access_counter[1][3], dm_access_counter[1][4], dm_access_counter[1][5], dm_access_counter[1][6], dm_access_counter[1][7], dm_access_counter[1][8], dm_access_counter[1][9], dm_access_counter[1][10], dm_access_counter[1][11], dm_access_counter[1][12], dm_access_counter[1][13],
+          dm_access_counter[2][0], dm_access_counter[2][1], dm_access_counter[2][2], dm_access_counter[2][3], dm_access_counter[2][4], dm_access_counter[2][5], dm_access_counter[2][6], dm_access_counter[2][7], dm_access_counter[2][8], dm_access_counter[2][9], dm_access_counter[2][10], dm_access_counter[2][11], dm_access_counter[2][12], dm_access_counter[2][13],
+          dm_access_counter[3][0], dm_access_counter[3][1], dm_access_counter[3][2], dm_access_counter[3][3], dm_access_counter[3][4], dm_access_counter[3][5], dm_access_counter[3][6], dm_access_counter[3][7], dm_access_counter[3][8], dm_access_counter[3][9], dm_access_counter[3][10], dm_access_counter[3][11], dm_access_counter[3][12], dm_access_counter[3][13]);
   }
 }
 
@@ -878,4 +1238,4 @@ static void bench_path_walk_lat(ethanefs_cli_t *cli) {
 }
 
 // SET_WORKER_FN(bench_motivation_load);
-SET_WORKER_FN(bench_motivation_stat);
+SET_WORKER_FN(bench_evalution_stat);

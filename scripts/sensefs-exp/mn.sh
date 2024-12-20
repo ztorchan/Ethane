@@ -21,7 +21,7 @@ cluster_init
 $PROJECT_DIR/build/memd -z localhost:2181 -c $SCRIPT_DIR/memd.yaml &
 memd_pid=$!
 
-sleep 4
+sleep 6
 
 $PROJECT_DIR/build/format -z localhost:2181 -t $SCRIPT_DIR/fs.yaml
 
